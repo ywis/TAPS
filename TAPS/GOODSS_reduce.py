@@ -1,0 +1,3243 @@
+import pandas as pd
+import numpy as np
+import matplotlib.backends.backend_tkagg
+import matplotlib.pylab as plt
+from astropy.io import fits
+from astropy import units as units
+from specutils import extinction
+import astropy.io.fits as pyfits
+from astropy.convolution import Gaussian1DKernel, convolve
+from extinction import calzetti00, apply, ccm89
+from scipy import optimize
+import sys
+import time
+import emcee
+import corner
+from multiprocessing import Pool,cpu_count
+
+ncpu = cpu_count()
+print("{0} CPUs".format(ncpu))
+
+plt.tight_layout()
+plt.rc('lines', linewidth=1, markersize=2)
+plt.rc('font', size=12, family='serif')
+plt.rc('mathtext', fontset='stix')
+plt.rc('axes', linewidth=2)
+plt.rc('xtick.major', width=1.5, size=4)
+plt.rc('ytick.major', width=1.5, size=4)
+plt.tick_params(axis='both', which='major', labelsize=18)
+plt.tick_params(axis='both', which='minor', labelsize=18)
+plt.subplots_adjust(bottom=0.2, left=0.2)
+
+### Reading Spectra
+df_cat=pd.read_csv('/Volumes/My Passport/goodss_3dhst_v4.1.5_catalogs/goodss_3dhst.v4.1.5.zbest.rf', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153","L154","nfilt154", "L155", "nfilt155", "L161", "nfilt161", "L162", "nfilt162",\
+                "L163", "nfilt163", "L156", "nfilt156", "L157", "nfilt157", "L158", "nfilt158", "L159", "nfilt159", "L160", "nfilt160", "L135", "nfilt135", "L136", "nfilt136",\
+                "L137", "nfilt137", "L138", "nfilt138", "L139", "nfilt139", "L270", "nfilt270", "L271", "nfilt271", "L272", "nfilt272", "L273", "nfilt273", "L274", "nfilt274", "L275", "nfilt275"]
+
+# df = pd.read_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/matching_galaxies_goodss_20180826_GV.csv', sep=',')
+# df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodss_20200206_PSB.csv', sep=',')
+df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodss_20200301_PSB.csv', sep=',')
+df.columns=['detector','ID','region','filename','chip']
+
+df_photometry=pd.read_csv('/Volumes/My Passport/goodss_3dhst.v4.1.cats/Catalog/goodss_3dhst.v4.1.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_photometry.columns=["id", "x", "y", "ra", "dec", "faper_F160W", "eaper_F160W", "faper_F140W", "eaper_F140W", "f_F160W", "e_F160W", "w_F160W",\
+                        "f_U38", "e_U38", "w_U38","f_U", "e_U", "w_U","f_F435W", "e_F435W", "w_F435W", "f_B", "e_B", "w_B", "f_V", "e_V", "w_V", \
+                        "f_F606Wcand", "e_F606Wcand", "w_F606Wcand","f_F606W", "e_F606W","w_F606W","f_R", "e_R", "w_R", "f_Rc", "e_Rc", "w_Rc", \
+                        "f_F775W", "e_F775W", "w_F775W","f_I", "e_I", "w_I", "f_F814Wcand", "e_F814Wcand", "w_F814Wcand", "f_F850LP", "e_F850LP", "w_F850LP",\
+                        "f_F850LPcand", "e_F850LPcand", "w_F850LPcand", "f_F125W", "e_F125W", "w_F125W","f_J", "e_J", "w_J", "f_tenisJ", "e_tenisJ", "w_tenisJ",\
+                        "f_F140W", "e_F140W", "w_F140W","f_H", "e_H", "w_H", "f_tenisK", "e_tenisK", "w_tenisK","f_Ks", "e_Ks", "w_Ks",\
+                        "f_IRAC1", "e_IRAC1", "w_IRAC1", "f_IRAC2", "e_IRAC2", "w_IRAC2", "f_IRAC3", "e_IRAC3", "w_IRAC3", "f_IRAC4", "e_IRAC4", "w_IRAC4",\
+                        "f_IA427", "e_IA427", "f_IA445", "e_IA445", "f_IA505", "e_IA505", "f_IA527", "e_IA527", "f_IA550", "e_IA550", "f_IA574", "e_IA574",\
+                        "f_IA598", "e_IA598", "f_IA624", "e_IA624", "f_IA651", "e_IA651", "f_IA679", "e_IA679", "f_IA738", "e_IA738", "f_IA767", "e_IA767",\
+                        "f_IA797", "e_IA797", "f_IA856", "e_IA856", "tot_cor", "wmin_ground", "wmin_hst","wmin_wfc3", "wmin_irac", "z_spec", "star_flag",\
+                        "kron_radius","a_image", "b_image", "theta_J2000", "class_star", "flux_radius", "fwhm_image", "flags", "IRAC1_contam", "IRAC2_contam",\
+                         "IRAC3_contam", "IRAC4_contam", "contam_flag","f140w_flag", "use_phot", "near_star", "nexp_f125w", "nexp_f140w", "nexp_f160w"]
+
+df_fast = pd.read_csv('/Volumes/My Passport/goodss_3dhst.v4.1.cats/Fast/goodss_3dhst.v4.1.fout', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_fast.columns = ['id', 'z', 'ltau', 'metal','lage','Av','lmass','lsfr','lssfr','la2t','chi2']
+
+
+# ###  Ma05
+norm_wavelength= 5500.0
+df_Ma = pd.read_csv('/Volumes/My Passport/M09_ssp_pickles.sed', delim_whitespace=True, header=None, comment='#',index_col=False)# only solar metallicity is contained in this catalogue
+df_Ma.columns = ['Age','ZH','l','Flambda']
+age = df_Ma.Age
+metallicity = df_Ma.ZH
+wavelength = df_Ma.l
+Flux = df_Ma.Flambda
+age_1Gyr_index = np.where(age==1.0)[0]
+age_1Gyr = age[age_1Gyr_index]
+metallicity_1Gyr = metallicity[age_1Gyr_index]
+wavelength_1Gyr = wavelength[age_1Gyr_index]
+Flux_1Gyr = Flux[age_1Gyr_index]
+F_5500_1Gyr_index=np.where(wavelength_1Gyr==norm_wavelength)[0]
+F_5500_1Gyr = Flux_1Gyr[wavelength_1Gyr==norm_wavelength].values # this is the band to be normalized 
+
+
+df_M13 = pd.read_csv('/Volumes/My Passport/M13_models/sed_M13.ssz002',delim_whitespace=True,header=None,comment='#',index_col=False)
+df_M13.columns = ['Age','ZH','l','Flambda']
+age_M13 = df_M13.Age
+metallicity_M13 = df_M13.ZH
+wavelength_M13 = df_M13.l
+Flux_M13 = df_M13.Flambda
+age_1Gyr_index_M13 = np.where(age_M13==1.0)[0]#[0]
+age_1Gyr_M13 = age_M13[age_1Gyr_index_M13]
+metallicity_1Gyr_M13 = metallicity_M13[age_1Gyr_index_M13]
+wavelength_1Gyr_M13 = wavelength_M13[age_1Gyr_index_M13]
+Flux_1Gyr_M13 = Flux_M13[age_1Gyr_index_M13]
+F_5500_1Gyr_index_M13=np.where(abs(wavelength_1Gyr_M13-norm_wavelength)<15)[0]
+F_5500_1Gyr_M13 = 0.5*(Flux_1Gyr_M13.loc[62271+F_5500_1Gyr_index_M13[0]]+Flux_1Gyr_M13.loc[62271+F_5500_1Gyr_index_M13[1]])
+
+
+# ### BC03
+df_BC = pd.read_csv('ssp_900Myr_z02.spec',delim_whitespace=True,header=None,comment='#',index_col=False)
+df_BC.columns=['Lambda','Flux']
+wavelength_BC = df_BC.Lambda
+Flux_BC = df_BC.Flux
+F_5500_BC_index=np.where(wavelength_BC==norm_wavelength)[0]
+Flux_BC_norm = Flux_BC[F_5500_BC_index]
+
+### Read in the BC03 models High-resolution, with Stelib library, Salpeter IMF, solar metallicity
+BC03_fn='/Volumes/My Passport/bc03/models/Stelib_Atlas/Salpeter_IMF/bc2003_hr_stelib_m62_salp_ssp.ised_ASCII'
+BC03_file = open(BC03_fn,"r")
+BC03_X = []
+for line in BC03_file:
+    BC03_X.append(line)
+BC03_SSP_m62 = np.array(BC03_X)
+BC03_age_list = np.array(BC03_SSP_m62[0].split()[1:])
+BC03_age_list_num = BC03_age_list.astype(np.float)/1.0e9 # unit is Gyr
+BC03_wave_list = np.array(BC03_SSP_m62[6].split()[1:])
+BC03_wave_list_num = BC03_wave_list.astype(np.float)
+BC03_flux_list = np.array(BC03_SSP_m62[7:-12])
+BC03_flux_array = np.zeros((221,7178))
+for i in range(221):
+    BC03_flux_array[i,:] = BC03_flux_list[i].split()[1:]
+    BC03_flux_array[i,:] = BC03_flux_array[i,:]/BC03_flux_array[i,2556]# Normalize the flux
+
+
+def find_nearest(array,value):
+    idx = np.argmin(np.abs(array-value))
+    return idx
+def read_spectra(row):
+    """
+    region: default 1 means the first region mentioned in the area, otherwise, the second region/third region
+    """
+    detector=df.detector[row]
+    region = df.region[row]
+    chip = df.chip[row]
+    ID = df.ID[row]
+    redshift_1=df_cat.loc[ID-1].z_best
+    mag = -2.5*np.log10(df_cat.loc[ID-1].L161)+25#+0.02
+    #print mag
+    #WFC3 is using the infrared low-resolution grism, and here we are using the z band
+    if detector == 'WFC3':
+        filename="/Volumes/My Passport/GOODSS_WFC3_V4.1.5/goodss-"+"{0:02d}".format(region)+"/1D/ASCII/goodss-"+"{0:02d}".format(region)+"-G141_"+"{0:05d}".format(ID)+".1D.ascii"
+        OneD_1 = np.loadtxt(filename,skiprows=1)
+    if detector =="ACS":
+        filename="/Volumes/My Passport/GOODSS_ACS_V4.1.5/acs-goodss-"+"{0:02d}".format(region)+"/1D/FITS/"+df.filename[row]
+        OneD_1 = fits.getdata(filename, ext=1)
+    return ID, OneD_1,redshift_1, mag
+def reduced_chi_square(data_wave,data,data_err,model_wave,model):
+    n=len(data_wave)
+    chi_square = 0
+    for i in range(n):
+        index = find_nearest(model_wave,data_wave[i]);#print index
+        chi_square += (data[i]-model[index])**2/(data_err[i]**2)
+        # print('chisquare processes',i,chi_square,data[i],model[index],data_err[i])
+    reduced_chi_square = chi_square/n
+    return reduced_chi_square
+def Lick_index_ratio(wave, flux, band=3):
+    if band == 3:
+        blue_min = 1.06e4  # 1.072e4#
+        blue_max = 1.08e4  # 1.08e4#
+        red_min = 1.12e4  # 1.097e4#
+        red_max = 1.14e4  # 1.106e4#
+        band_min = blue_max
+        band_max = red_min
+
+
+    # Blue
+    blue_mask = (wave >= blue_min) & (wave <= blue_max)
+    blue_wave = wave[blue_mask]
+    blue_flux = flux[blue_mask]
+
+    # Red
+    red_mask = (wave >= red_min) & (wave <= red_max)
+    red_wave = wave[red_mask]
+    red_flux = flux[red_mask]
+
+    band_mask = (wave >= band_min) & (wave <= band_max)
+    band_wave = wave[band_mask]
+    band_flux = flux[band_mask]
+
+    if len(blue_wave) == len(red_wave) and len(blue_wave) != 0:
+        ratio = np.mean(blue_flux) / np.mean(red_flux)
+    elif red_wave == []:
+        ratio = np.mean(blue_flux) / np.mean(red_flux)
+    elif len(blue_wave) != 0 and len(red_wave) != 0:
+        ratio = np.mean(blue_flux) / np.mean(red_flux)
+
+    # ratio_err = np.sqrt(np.sum(1/red_flux**2*blue_flux_err**2)+np.sum((blue_flux/red_flux**2*red_flux_err)**2))
+
+    return ratio  # , ratio_err
+def binning_spec_keep_shape(wave,flux,bin_size):
+    wave_binned = wave
+    flux_binned = np.zeros(len(wave))
+    for i in range((int(len(wave)/bin_size))+1):
+        flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
+    return wave_binned, flux_binned#, flux_err_binned
+
+def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, band_list, photometric_flux, photometric_flux_err, A_v, start=0.1, end=0.9):
+    """
+    OneD_1 is the oneD spectra
+    redshift_1 is the redshift of the spectra
+    rownumber is the row number in order to store the spectra
+    """
+    region = df.region[rownumber]
+    ID = df.ID[rownumber]
+    n = len(OneD_1)
+    age =10**(df_fast.loc[ID-1].lage)/1e9 ## in Gyr
+    metal = df_fast.loc[ID-1].metal
+    sfr = 10**(df_fast.loc[ID-1].lsfr)
+    intrinsic_Av = df_fast.loc[ID-1].Av   
+    
+    norm_factor_BC = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/1)
+    norm_limit_BC = int(5930/norm_factor_BC)*norm_factor_BC+400
+    smooth_wavelength_BC_1 = wavelength_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
+    smooth_wavelength_BC = np.hstack([smooth_wavelength_BC_1,wavelength_BC[norm_limit_BC:]])
+
+    smooth_Flux_BC_1 = Flux_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
+    smooth_Flux_BC = np.hstack([smooth_Flux_BC_1,Flux_BC[norm_limit_BC:]])/Flux_BC_norm.values[0]
+    
+    norm_factor_Ma = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/5)
+    norm_limit_Ma = int(4770/norm_factor_Ma)*norm_factor_Ma
+    smooth_wavelength_Ma = wavelength_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)
+    smooth_Flux_Ma_1Gyr = Flux_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)/F_5500_1Gyr
+
+    # Normalize the flux
+    if redshift_1<=0.1:
+        i = 12
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA574: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.2:
+        i = 13
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA624: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.3:
+        i = 15
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA679: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.4:
+        i = 16
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA738: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.5:
+        i = 18
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA797: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.6:
+        i = 19
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA856: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    else:
+        i = 26
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at F850LPcand: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    
+    x = np.zeros(n)
+    y = np.zeros(n)
+    y_err = np.zeros(n)
+    contam = np.zeros(n)
+
+    for i in range(0,n):
+        x[i] = OneD_1[i][0]#/(1+redshift_1)
+
+    #spectra_extinction = ccm89(x, A_v, 3.1)
+    spectra_extinction = calzetti00(x, A_v, 4.05)
+    for i in range(n):
+        #temp_extinction = extinction.extinction(x[i]*units.angstrom, a_v=A_v, r_v=3.1, model='d03')
+        spectra_flux_correction = 10**(0.4*spectra_extinction[i])
+        x[i] = x[i]/(1+redshift_1)
+        y[i] = (OneD_1[i][1]-OneD_1[i][3])/OneD_1[i][6]*spectra_flux_correction#/Flux_0 # (flux-contamination)/sensitivity
+        y_err[i] = OneD_1[i][2]/OneD_1[i][6]*spectra_flux_correction#/Flux_0
+        contam[i] = OneD_1[i][3]
+    
+    contam_min, contam_max = np.percentile(contam,[16,84])
+    index_start = np.where(contam>=contam_min)[0][0]
+    index_end = np.where(contam<=contam_max)[0][-1]
+    x = x[index_start:index_end+1]#[int(n*2/10):int(n*8/10)]
+    y = y[index_start:index_end+1]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+    y_err = y_err[index_start:index_end+1]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+    
+    mask_non_neg = np.where(y>0)
+    x = x[mask_non_neg]
+    y = y[mask_non_neg]
+    y_err = y_err[mask_non_neg]
+
+    mask_non_neg_2 = np.where(y_err>0)
+    x = x[mask_non_neg_2]
+    y = y[mask_non_neg_2]
+    y_err = y_err[mask_non_neg_2]
+
+    mask_large_err = np.where(y_err/y<1)
+    x = x[mask_large_err]
+    y = y[mask_large_err]
+    y_err = y_err[mask_large_err]
+    
+    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band 
+def plot_1D_spectra_Av_corrected(x, y, y_err, z_NIR, wave_list, photometric_flux, photometric_flux_err, model1_wave, model1_flux, intrinsic_Av, region, ID, model_name='M05'):
+    
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.3,.8,.6))
+
+    plt.plot(x, y, color='r', lw=3)
+    
+    plt.plot(model1_wave, model1_flux, color='k', linewidth=2, label='model 1')
+    # Spectral Index
+    index2=Lick_index_ratio(x,y)
+    plt.text(0.93e4, 1.2, 'index2:'+"{0:.2f}".format(index2),fontsize=12)
+    if redshift_1 < 0.49:
+        index3=Lick_index_ratio(x,y,band=3)
+        plt.text(1.1e4, 1.2, 'index3:'+"{0:.2f}".format(index3),fontsize=12)
+    else:
+        index3 = 0.0
+    
+    plt.plot(x[5:-5],z_NIR[5:-5],color='b',lw=2)
+    if np.max(y_err/y)<1:
+        plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.05)
+        
+    ymin = np.min(y)
+    ymax = max(np.max(y), np.max(model1_flux))
+    xmin = np.min(x)
+    xmax = np.max(x)
+    if np.isinf(ymin) or ymin<0 or ymin>0.5:
+        ymin=0
+    if np.isinf(ymax) or ymax>10:
+        ymax=3
+    
+    #photometric_flux = photometric_flux/norm_band
+    plt.errorbar(wave_list, photometric_flux, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    
+    plt.text(wave_list[0],0.3,'U',fontsize=12)
+    plt.text(wave_list[1],0.3,'R',fontsize=12)
+    plt.text(wave_list[2],0.4,'U38',fontsize=12)
+    plt.text(wave_list[3],0.4,'B',fontsize=12)
+    plt.text(wave_list[4],0.4,'V',fontsize=12)
+    plt.text(wave_list[5],0.4,'Rc',fontsize=12)
+    plt.text(wave_list[6],0.4,'I',fontsize=12)
+    plt.text(wave_list[7],0.25,'IA427',fontsize=12)
+    plt.text(wave_list[8],0.35,'IA445',fontsize=12)
+    plt.text(wave_list[9],0.45,'IA505',fontsize=12)
+    plt.text(wave_list[10],0.55,'IA527',fontsize=12)
+    plt.text(wave_list[11],0.25,'IA550',fontsize=12)
+    plt.text(wave_list[12],0.50,'IA574',fontsize=12)
+    plt.text(wave_list[13],0.45,'IA624',fontsize=12)
+    plt.text(wave_list[14],0.65,'IA651',fontsize=12)
+    plt.text(wave_list[15],0.25,'IA679',fontsize=12)
+    plt.text(wave_list[16],0.40,'IA738',fontsize=12)
+    plt.text(wave_list[17],0.45,'IA767',fontsize=12)
+    plt.text(wave_list[18],0.60,'IA797',fontsize=12)
+    plt.text(wave_list[19],0.25,'IA856',fontsize=12)
+    plt.text(wave_list[20],0.35,'F435W',fontsize=12)
+    plt.text(wave_list[21],0.45,'F606W',fontsize=12)
+    plt.text(wave_list[22],0.60,'F775W',fontsize=12)
+    plt.text(wave_list[23],0.30,'F850LP',fontsize=12)
+    plt.text(wave_list[24],0.25,'F606Wcand',fontsize=12)
+    plt.text(wave_list[25],0.35,'F814Wcand',fontsize=12)
+    plt.text(wave_list[26],0.45,'F850LPcand',fontsize=12)
+    plt.text(wave_list[27],0.3,'F125W',fontsize=12)
+    plt.text(wave_list[28],0.3,'F140W',fontsize=12)
+    plt.text(wave_list[29],0.3,'F160W',fontsize=12)
+    plt.text(wave_list[30],0.35,'J',fontsize=12)
+    plt.text(wave_list[31],0.35,'H',fontsize=12)
+    plt.text(wave_list[32],0.35,'Ks',fontsize=12)
+    plt.text(wave_list[33],0.25,'tenisJ',fontsize=12)
+    plt.text(wave_list[34],0.25,'tennisK',fontsize=12)
+    
+    plt.text(1.2e4, 1.2, r'Galactic $A_V$='+"{0:.2f}".format(intrinsic_Av),fontsize=12)
+
+    # Normalize the flux
+    if redshift_1<=0.1:
+        i = 12
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA574: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.2:
+        i = 13
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA624: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.3:
+        i = 15
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA679: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.4:
+        i = 16
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA738: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.5:
+        i = 18
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA797: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    elif redshift_1<=0.6:
+        i = 19
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at IA856: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    else:
+        i = 26
+        temp_norm_wave = wave_list[i]#/(1+redshift_1)
+        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        #norm_band = photometric_flux[i] 
+        #plt.text(5000,0.55,'normalized at F850LPcand: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
+        plt.axvline(temp_norm_wave,linewidth=2,color='b')
+    
+    plt.xlim([3000,1.2*xmax])
+    plt.ylim([0.25, ymax])#plt.ylim([ymin,ymax])
+    plt.xlabel(r'Wavelength $\rm \AA$',fontsize=20)
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=20)
+    titlename='/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20181016/goodss_GV_CMD'+ "-G141_"+"{0:05d}".format(ID)+'-'+"{0:02d}".format(region)+'_'+model_name+".png" 
+        
+    
+    #==============Residual Plot========================
+    frame2=fig1.add_axes((.1,.1,.8,.2))  
+    index0=0
+    relative_residuals=np.zeros([3,n])
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model1_wave, wave);#print index
+            relative_residuals[0, index0] = y[index0]/model1_flux[index]
+            index0=index0+1
+    if index0 > 0:
+        plt.plot(x[:index0],relative_residuals[0,:index0],color='k')
+        
+    index0=0
+    relative_photo = np.zeros([1,n])+1
+    for i in range(len(wave_list)):
+        if wave_list[i]>np.min(x) and wave_list[i]<np.max(x):
+            index = find_nearest(x, wave_list[i])
+            relative_photo[0,index0]=y[index]/(photometric_flux[i])
+            plt.errorbar(wave_list[i], y[index]/(photometric_flux[i]), yerr=y_err[index]/(photometric_flux[i]), fmt='o',color='r', markersize=16)
+            index0=index0+1
+            #print(i,wave_list[i]/(1+redshift_1), y_err[index]/(photometric_flux[i]/norm_band))
+
+    plt.axhline(1.0,linewidth=2,color='k') 
+    plt.xlim([3000,1.2*xmax])
+    plt.ylim([max(0,np.min(relative_photo)-0.2),np.max(relative_residuals)+0.1])# this is the situation for 
+    plt.xlabel(r'wavelength($\AA$)',fontsize=20)
+    plt.ylabel('Relative Residual',fontsize=14) #Flux (spectra over model/photometry)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    
+    if len(x)>100 and np.max(y_err/y)<1 and np.min(y_err/y)>0:
+        plt.savefig(titlename)
+        pass
+    plt.clf()
+def plot_3models(x, y, y_err, z_NIR, wave_list, band_list, photometric_flux, photometric_flux_err, model1_wave, model1_flux, AV_prior_optimized_M05, \
+    model2_wave, model2_flux, AV_prior_optimized_M13, model3_wave, model3_flux, AV_prior_optimized_BC03, region, ID):
+    #------------ Plotting the figure ------------------------------
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.tight_layout()
+    #plt.rc('lines', linewidth=3, markersize=2)
+    plt.rc('font', size=24, family='serif', weight=300)
+    plt.rc('mathtext', fontset = 'stix')
+    plt.rc('axes', linewidth=2)
+    plt.rc('xtick.major', width=1.5, size=6)
+    plt.rc('ytick.major', width=1.5, size=6)
+    # Normalize and smooth the models, smoothing BC to delta_lambda =14, smoothing Ma05 to be delta_lambda = 10
+    delta_lambda = x[1]-x[0]
+    #print('delta lambda', delta_lambda)
+
+    norm_factor_BC = int(delta_lambda/3.)
+    #print('norm factor',norm_factor_BC)
+    norm_limit_BC = int(len(model3_wave)*1.0/norm_factor_BC)*norm_factor_BC
+    smooth_model3_wave = model3_wave[:norm_limit_BC].reshape(-1,norm_factor_BC).mean(axis=1)
+    smooth_model3_flux = model3_flux[:norm_limit_BC].reshape(-1,norm_factor_BC).mean(axis=1)    
+    
+    plt.plot(model1_wave, model1_flux, color='k', linewidth=2, label='Ma05')
+    plt.plot(model2_wave, model2_flux, color='g', linewidth=2, label='Ma13')
+    plt.plot(smooth_model3_wave, smooth_model3_flux, color='orange', linewidth=2, label='BC03')  
+    #plt.plot(model3_wave, model3_flux-0.2)  
+    
+    plt.plot(x, y, color='r',lw=3)
+    
+    plt.plot(x[5:-5],z_NIR[5:-5], color='b', lw=2)
+    if np.max(y_err/y)<1:
+        plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+        
+    ymin = np.min(y)
+    ymax = max(np.max(y), np.max(model1_flux))
+    xmin = np.min(x)
+    xmax = np.max(x)
+    if np.isinf(ymin) or ymin<0 or ymin>0.5:
+        ymin=0
+    if np.isinf(ymax) or ymax>10:
+        ymax=3
+    
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr= photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    
+    if redshift_1<=0.1:
+        i = 12
+        temp_norm_wave = wave_list[i]
+    elif redshift_1<=0.2:
+        i = 13
+        temp_norm_wave = wave_list[i]
+    elif redshift_1<=0.3:
+        i = 15
+        temp_norm_wave = wave_list[i]
+    elif redshift_1<=0.4:
+        i = 16
+        temp_norm_wave = wave_list[i]
+    elif redshift_1<=0.5:
+        i = 18
+        temp_norm_wave = wave_list[i]
+    elif redshift_1<=0.6:
+        i = 19
+        temp_norm_wave = wave_list[i]
+    else:
+        i = 26
+        temp_norm_wave = wave_list[i]
+    
+    plt.xlim([2.45e3,1.5e4])
+    plt.ylim([0.1, 1.4])#plt.ylim([ymin,ymax])
+    plt.xlabel(r'Wavelength $\rm \AA$',fontsize=24)
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    titlename='/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20190711/goodss_GV_CMD'+ "-G141_"+"{0:05d}".format(ID)+'-'+"{0:02d}".format(region)+"_three_models.pdf" 
+    plt.axvline(0.843e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(0.886e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(1.048e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(1.1e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(1.4e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(0.93e4, linestyle='-.', lw=1, color = 'k')
+    plt.axvline(1.17e4, linestyle='-.', lw=1, color = 'k')
+    #==============Residual Plot========================
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+
+    model_index = np.argmin([x2_1+5e-3*x2_photo_1, x2_2+5e-3*x2_photo_2, x2_3+5e-3*x2_photo_3])
+    if model_index == 0:
+        model_wave = model1_wave
+        model_flux = model1_flux
+    elif model_index == 1:
+        model_wave = model2_wave
+        model_flux = model2_flux
+    elif model_index == 2:
+        model_wave = smooth_model3_wave
+        model_flux = smooth_model3_flux
+
+    relative_spectra = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            index0 = index0+1
+    if index0 > 0:
+        plt.plot(x[:index0], relative_spectra[0,:index0], color='b', linewidth=2)
+
+
+    index0 = 0
+    relative_photo = np.zeros([1,(len(wave_list))])
+    for i in range(len(wave_list)):
+        #if wave_list[i]>np.min(x) and wave_list[i]<np.max(x):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+            relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+        index0 = index0+1
+    plt.xlim([2.45e3,1.5e4])
+    #plt.xlim([3000,15000]) 
+    #plt.xlim([np.min(wave_list), np.max(wave_list)])
+    plt.ylim([0.5, 1.5])#max(np.max(relative_residual_1)+0.1,2.0)])# this is the situation for 
+    #plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    #plt.ylabel('Relative Residual', fontsize=14) #Flux (spectra over model/photometry)
+    plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    
+    #==============Residual Plot of the models========================
+    frame3 = fig1.add_axes((.1,.05,.8,.12)) 
+    index0 = 0
+    relative_residual_1 = np.zeros([2,len(model1_wave)])
+    for wave in model1_wave:
+        try:
+            index = find_nearest(model_wave, wave)
+            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
+            relative_residual_1[0, index0] = wave
+            relative_residual_1[1, index0] = model1_flux[index0]/model_flux_interp#/model_flux[index]
+            index0 = index0 + 1
+        except:
+            pass
+    if index0 > 0:
+        plt.plot(relative_residual_1[0,:], relative_residual_1[1,:], color = 'k')
+    #print('Relative residuals:', relative_residual_1[1,:])
+    
+    index0 = 0
+    relative_residual_2 = np.zeros([2,len(model2_wave)])
+    for wave in model2_wave:
+        try:
+            index = find_nearest(model_wave, wave)
+            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
+            #print(model_flux_interp)
+            relative_residual_2[0, index0] = wave
+            relative_residual_2[1, index0] = model2_flux[index0]/model_flux_interp#/model_flux[index]
+            index0 = index0 + 1
+        except:
+            pass
+    if index0 > 0:
+        plt.plot(relative_residual_2[0,:], relative_residual_2[1,:], color = 'g')
+
+    index0 = 0
+    relative_residual_3 = np.zeros([2,len(smooth_model3_wave)])
+    for wave in smooth_model3_wave:
+        try:
+            index = find_nearest(model_wave, wave)
+            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
+            relative_residual_3[0, index0] = wave
+            relative_residual_3[1, index0] = smooth_model3_flux[index0]/model_flux_interp#/model_flux[index]
+            index0 = index0 + 1
+        except:
+            pass
+    if index0 > 0:
+        plt.plot(relative_residual_3[0,:], relative_residual_3[1,:], color = 'orange')
+
+    plt.xlim([2.45e3,1.5e4])
+    #plt.xlim([3000,15000]) 
+    #plt.xlim([np.min(wave_list), np.max(wave_list)])
+    plt.ylim([0.5, 2.0])#max(np.max(relative_residual_1)+0.1,2.0)])# this is the situation for 
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    plt.ylabel('Relative Residual', fontsize=14) #Flux (spectra over model/photometry)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    if len(x)>100 and np.max(y_err/y)<1 and np.min(y_err/y)>0:
+        plt.savefig(titlename)
+        print(titlename)
+        plt.clf()
+        pass
+    else:
+        print('length of data points:',len(x))
+        print('Max of error:', np.max(y_err/y))
+        print('min of err:',np.min(y_err/y))
+    plt.clf()
+def model_identification(chi2_array,rtol=0.1):
+    index = find_nearest(chi2_array,1)    
+    model = np.mod(index,3)+1
+    chi2_array_comp = abs(chi2_array-1)
+    chi2_array_comp_idx = np.argsort(chi2_array_comp)[:2]
+    if np.mod(chi2_array_comp_idx[0],3)==np.mod(chi2_array_comp_idx[1],3):
+        chi2_array_comp_idx = np.argsort(chi2_array_comp)[1:3]
+    chi2_min2_array = chi2_array[chi2_array_comp_idx]
+    if np.isclose(chi2_min2_array[0],chi2_min2_array[1],rtol=rtol):
+        model = 0
+    return model
+def model_from_chi2(df_opt):
+    for i in range(len(df_opt)):
+        chi2_array=df_opt.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt',\
+                                 'x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
+        chi2_spec_array=df_opt.loc[i,['x2_spectra_M05_opt','x2_spectra_M13_opt','x2_spectra_BC_opt',\
+                                      'x2_spectra_M05_MCMC50','x2_spectra_M13_MCMC50','x2_spectra_BC_MCMC50']].values
+        chi2_phot_array=df_opt.loc[i,['x2_photo_M05_opt','x2_photo_M13_opt','x2_photo_BC_opt',\
+                                      'x2_photo_M05_MCMC50','x2_photo_M13_MCMC50','x2_photo_BC_MCMC50']].values
+        age_array=df_opt.loc[i,['M05_age_opt','M13_age_opt','BC_age_opt',\
+                                'M05_age_MCMC50','M13_age_MCMC50','BC_age_MCMC50']].values
+        age_std_array=df_opt.loc[i,['M05_age_std','M13_age_std','BC_age_std',\
+                                    'M05_age_std','M13_age_std','BC_age_std']].values
+        AV_array=df_opt.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt',\
+                               'M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
+        AV_std_array=df_opt.loc[i,['M05_AV_std','M13_AV_std','BC_AV_std',\
+                                   'M05_AV_std','M13_AV_std','BC_AV_std']].values        
+        index = find_nearest(chi2_array,1)    
+        df_opt.loc[i,'model'] = np.mod(index,3)+1
+        df_opt.loc[i,'model_new']=model_identification(chi2_array)
+        df_opt.loc[i,'best_chi2']=chi2_array[index]
+        df_opt.loc[i,'best_chi2_spec']=chi2_spec_array[index]
+        df_opt.loc[i,'best_chi2_phot']=chi2_phot_array[index]
+        df_opt.loc[i,'age_opt']=age_array[index]
+        df_opt.loc[i,'age_opt_std']=age_std_array[index]
+        df_opt.loc[i,'AV_opt']=AV_array[index]
+        df_opt.loc[i,'AV_opt_std']=AV_std_array[index]
+    return df_opt
+    for i in range(len(df_opt)):
+        chi2_array=df_opt.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
+        chi2_spec_array=df_opt.loc[i,['x2_spectra_M05_opt','x2_spectra_M13_opt','x2_spectra_BC_opt','x2_spectra_M05_MCMC50','x2_spectra_M13_MCMC50','x2_spectra_BC_MCMC50']].values
+        chi2_phot_array=df_opt.loc[i,['x2_photo_M05_opt','x2_photo_M13_opt','x2_photo_BC_opt','x2_photo_M05_MCMC50','x2_photo_M13_MCMC50','x2_photo_BC_MCMC50']].values
+        age_array=df_opt.loc[i,['M05_age_opt','M13_age_opt','BC_age_opt','M05_age_MCMC50','M13_age_MCMC50','BC_age_MCMC50']].values
+        age_std_array=df_opt.loc[i,['M05_age_std','M13_age_std','BC_age_std','M05_age_std','M13_age_std','BC_age_std']].values
+        AV_array=df_opt.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
+        AV_std_array=df_opt.loc[i,['M05_AV_std','M13_AV_std','BC_AV_std','M05_AV_std','M13_AV_std','BC_AV_std']].values
+        index = find_nearest(chi2_array,1)
+        df_opt.loc[i,'model']=np.mod(index,3)+1
+        df_opt.loc[i,'best_chi2']=chi2_array[index]
+        df_opt.loc[i,'best_chi2_spec']=chi2_spec_array[index]
+        df_opt.loc[i,'best_chi2_phot']=chi2_phot_array[index]
+        df_opt.loc[i,'age_opt']=age_array[index]
+        df_opt.loc[i,'age_opt_std']=age_std_array[index]
+        df_opt.loc[i,'AV_opt']=AV_array[index]
+        df_opt.loc[i,'AV_opt_std']=AV_std_array[index]
+columns = ['ID','region','field',
+          'M05_age_opt','M05_AV_opt','M13_age_opt','M13_AV_opt','BC_age_opt','BC_AV_opt',\
+          'x2_spectra_M05_opt','x2_photo_M05_opt','x2_spectra_M13_opt','x2_photo_M13_opt','x2_spectra_BC_opt','x2_photo_BC_opt',\
+          'M05_age_MCMC50','M05_age_std','M05_AV_MCMC50','M05_AV_std','M13_age_MCMC50','M13_age_std','M13_AV_MCMC50','M13_AV_std','BC_age_MCMC50','BC_age_std','BC_AV_MCMC50','BC_AV_std',\
+          'x2_spectra_M05_MCMC50','x2_photo_M05_MCMC50','x2_spectra_M13_MCMC50','x2_photo_M13_MCMC50','x2_spectra_BC_MCMC50','x2_photo_BC_MCMC50',\
+          'x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50',\
+          'model','grism_index','grism_index_AV_corr','age_opt','age_opt_std','AV_opt','AV_opt_std']
+chi_square_list = pd.DataFrame(index=df.index,columns=columns)
+chi_square_list_final = pd.DataFrame(index=df.index,columns=columns)
+
+weight1 = 0.25#0.0#1/1.864#/0.5
+weight2 = weight1*5e-3#1.0#1/1228.53#/0.5
+
+def binning_spec_keep_shape_x(wave,flux,flux_err,bin_size):
+    wave_binned = wave
+    flux_binned = np.zeros(len(wave))
+    flux_err_binned = np.zeros(len(wave))
+    for i in range((int(len(wave)/bin_size))+1):
+        flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
+        flux_err_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux_err[bin_size*i:bin_size*(i+1)])
+    return wave_binned, flux_binned, flux_err_binned
+def minimize_age_AV_vector_weighted(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+
+    n=len(x)
+    age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
+    age_prior = df_Ma.Age.unique()[age_index]
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1:
+        fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model1 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_15_Av_00_z002.csv'
+            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model1 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M05_flux_center = model1[1,:]*spectra_flux_correction
+    F_M05_index=167
+    Flux_M05_norm_new = M05_flux_center[F_M05_index]
+    smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
+
+    print('Age',galaxy_age, age_prior)
+    binning_index = find_nearest(model1[0,:],np.median(x));
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new, binning_size)
+        print('model flux before binning:',smooth_Flux_Ma_1Gyr_new)
+        print('binned model flux', model_flux_binned)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    else:
+        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
+        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo
+def lg_minimize_age_AV_vector_weighted(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
+    age_prior = df_Ma.Age.unique()[age_index]
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1:
+        fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model1 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_15_Av_00_z002.csv'
+            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model1 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M05_flux_center = model1[1,:]*spectra_flux_correction
+    F_M05_index=167
+    Flux_M05_norm_new = M05_flux_center[F_M05_index]
+    smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
+
+    binning_index = find_nearest(model1[0,:],np.median(x));
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    else:
+        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
+        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    
+    if 0.01<galaxy_age<13.0 and 0.0<intrinsic_Av<4.0 and not np.isinf(x2+1e-3*x2_photo):
+        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+    else:
+        return -np.inf
+def minimize_age_AV_vector_weighted_return_flux(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
+    age_prior = df_Ma.Age.unique()[age_index]
+    #print('galaxy age', galaxy_age, 'age prior:', age_prior)
+    AV_string = str(intrinsic_Av)
+    #print('intrinsic Av:', intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1:
+        fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model1 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age <= 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_15_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model1 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M05_flux_center = model1[1,:]*spectra_flux_correction
+    F_M05_index=167
+    Flux_M05_norm_new = M05_flux_center[F_M05_index]
+    smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
+
+    binning_index = find_nearest(model1[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    else:
+        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
+        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo, model1[0,:], smooth_Flux_Ma_1Gyr_new
+def minimize_age_AV_vector_weighted_return_chi2_sep(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
+    age_prior = df_Ma.Age.unique()[age_index]
+    #print('galaxy age', galaxy_age, 'age prior:', age_prior)
+    AV_string = str(intrinsic_Av)
+    #print('intrinsic Av:', intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1:
+        fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model1 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M05_age_15_Av_00_z002.csv'
+            #print(fn1, fn2)
+            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model1 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M05_flux_center = model1[1,:]*spectra_flux_correction
+    F_M05_index=167
+    Flux_M05_norm_new = M05_flux_center[F_M05_index]
+    smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
+    
+    binning_index = find_nearest(model1[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+    else:
+        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
+        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    
+    return x2,x2_photo
+
+def minimize_age_AV_vector_weighted_M13(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
+    age_prior = df_M13.Age.unique()[age_index]
+    age_prior = float(age_prior)
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_0001_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior < 1 and age_prior>=1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            model2 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            model2 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            model2 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            model2 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            model2 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            model2 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            model2 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            model2 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            model2 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            model2 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            model2 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            model2 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_15_Av_00_z002.csv'
+            model2 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model2 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M13_flux_center = model2[1,:]*spectra_flux_correction
+    F_M13_index = 126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    Flux_M13_norm_new = M13_flux_center[F_M13_index]
+    smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
+
+    binning_index = find_nearest(model2[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+    else:
+        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
+        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo
+def lg_minimize_age_AV_vector_weighted_M13(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
+    age_prior = df_M13.Age.unique()[age_index]
+    age_prior = float(age_prior)
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_0001_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior < 1 and age_prior>=1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            model2 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            model2 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            model2 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            model2 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            model2 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            model2 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            model2 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            model2 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            model2 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            model2 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            model2 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            model2 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_15_Av_00_z002.csv'
+            model2 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model2 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M13_flux_center = model2[1,:]*spectra_flux_correction
+    F_M13_index = 126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    Flux_M13_norm_new = M13_flux_center[F_M13_index]
+    smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
+    
+    binning_index = find_nearest(model2[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+    else:
+        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
+        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
+    
+    if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
+        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+    else:
+        return -np.inf
+def minimize_age_AV_vector_weighted_M13_return_flux(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
+    age_prior = df_M13.Age.unique()[age_index]
+    age_prior = float(age_prior)
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_0001_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior < 1 and age_prior>=1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            model2 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            model2 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            model2 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            model2 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            model2 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            model2 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            model2 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            model2 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            model2 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            model2 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            model2 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            model2 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_15_Av_00_z002.csv'
+            model2 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model2 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M13_flux_center = model2[1,:]*spectra_flux_correction
+    F_M13_index = 126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    Flux_M13_norm_new = M13_flux_center[F_M13_index]
+    smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
+
+    binning_index = find_nearest(model2[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+    else:
+        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
+        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo, model2[0,:], smooth_Flux_M13_1Gyr_new
+def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
+    age_prior = df_M13.Age.unique()[age_index]
+    age_prior = float(age_prior)
+    AV_string = str(intrinsic_Av)
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+
+    if age_prior < 1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_0001_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior < 1 and age_prior>=1e-4:
+        fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+        model2 = np.genfromtxt(fn1)
+    elif age_prior == 1.5:
+        if galaxy_age >=1.25 and galaxy_age <1.5:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+    elif len(split_galaxy_age_string[1])==1:
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            model2 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        elif galaxy_age >=1.75 and galaxy_age < 2.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_1_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            model2 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+        elif galaxy_age >= 2.0 and galaxy_age < 3.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_2_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            model2 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 3.0 and galaxy_age < 4.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_3_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            model2 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 4.0 and galaxy_age < 5.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_4_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            model2 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 5.0 and galaxy_age < 6.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_5_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            model2 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 6.0 and galaxy_age < 7.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_6_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            model2 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 7.0 and galaxy_age < 8.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_7_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            model2 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 8.0 and galaxy_age < 9.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_8_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            model2 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 9.0 and galaxy_age < 10.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_9_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            model2 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 10.0 and galaxy_age < 11.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_10_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            model2 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 11.0 and galaxy_age < 12.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_11_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            model2 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 12.0 and galaxy_age < 13.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_12_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            model2 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 13.0 and galaxy_age < 14.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_13_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            model2 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+        elif galaxy_age >= 14.0 and galaxy_age < 15.0:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_14_Av_00_z002.csv'
+            fn2 = '/Volumes/My Passport/SSP_models/M13_age_15_Av_00_z002.csv'
+            model2 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+        else:
+            fn1 = '/Volumes/My Passport/SSP_models/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+            model2 = np.genfromtxt(fn1)
+
+    spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    M13_flux_center = model2[1,:]*spectra_flux_correction
+    F_M13_index = 126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    Flux_M13_norm_new = M13_flux_center[F_M13_index]
+    smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
+
+    binning_index = find_nearest(model2[0,:],np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+    else:
+        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
+        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+ 
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
+    
+    return x2, x2_photo
+
+def minimize_age_AV_vector_weighted_BC03(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+    print(galaxy_age,age_prior)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    print('BC x2_nu',x2,x2_photo,0.5*weight1*x2+0.5*weight2*x2_photo)
+    return 0.5*weight1*x2+0.5*weight2*x2_photo
+def lg_minimize_age_AV_vector_weighted_BC03(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+    else:
+        model3_flux = BC03_flux_array[-1, :7125]   
+    
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    
+    if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
+        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+    else:
+        return -np.inf
+def minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index-1, :7125]*(BC03_age_list_num[age_index]-galaxy_age)\
+                            + BC03_flux_array[age_index, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval
+    elif galaxy_age > age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age)\
+                            + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)     
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo,BC03_flux_attenuated
+def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    
+    return x2,x2_photo
+def minimize_age_AV_vector_weighted_BC03_mod(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index-1, :7125]*(BC03_age_list_num[age_index]-galaxy_age)\
+                    + BC03_flux_array[age_index, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval
+    elif galaxy_age > age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age)\
+                    + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    
+    return 0.5*weight1*x2+0.5*weight2*x2_photo
+def lg_minimize_age_AV_vector_weighted_return_BC03_mod(X):
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index-1, :7125]*(BC03_age_list_num[age_index]-galaxy_age)\
+                    + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval
+    elif galaxy_age > age_prior and galaxy_age <1.97500006e+01:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age)\
+                    + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval   
+    else:
+        model3_flux = BC03_flux_array[-1, :7125]   
+    
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+
+    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
+    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
+        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
+        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
+        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
+        print('bin data', binning_size, x2)
+    else: 
+        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
+        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
+        print('bin model',binning_size, x2)
+    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+    x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    
+    if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
+        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+    else:
+        return -np.inf
+
+nsteps=1200
+current_dir = '/Volumes/My Passport/TPAGB/'
+outcome_dir = 'outcome/'
+plot_dir = 'plot/20200301_scale_photo/'
+
+# scale_to_photo=1.15
+for i in range(len(df)):
+    row = i
+    
+    [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
+    print(i, ID)        
+    ID_no = ID-1
+    redshift = df_photometry.loc[ID_no].z_spec
+
+    region = df.region[row]
+    intrinsic_Av = df_fast.loc[ID-1].Av
+    print('intrinsic Av:'+str(intrinsic_Av))
+    galaxy_age = 10**(df_fast.loc[ID-1].lage)/1e9
+    print('Galaxy age:', galaxy_age)
+    A_v=0.0207    
+    c=3e10
+    
+    chi_square_list.loc[row,'ID'] = float(ID)
+    chi_square_list.loc[row,'region'] = region
+    chi_square_list.loc[row,'field'] = 'aegis'
+
+# Photometry
+    # ESO GOODS  |  Nonino et al. 2009
+    U_wave = 3722
+    U_band = 375.5/2.
+    U = df_photometry.loc[ID_no].f_U/((U_wave)**2)*c*1e8*3.63e-30
+    U_err = df_photometry.loc[ID_no].e_U/((U_wave)**2)*c*1e8*3.63e-30
+
+    R_wave = 6449.7
+    R_band = 1286.3/2.
+    R = df_photometry.loc[ID_no].f_R/((R_wave)**2)*c*1e8*3.63e-30
+    R_err = df_photometry.loc[ID_no].e_R/((R_wave)**2)*c*1e8*3.63e-30
+    
+    
+    #  GaBoDs     | Hildebrandt et al. 2006, Erben 2005      |
+    U38_wave = 3706
+    U38_band = 357./2.
+    U38 = df_photometry.loc[ID_no].f_U38/((U38_wave)**2)*c*1e8*3.63e-30
+    U38_err = df_photometry.loc[ID_no].e_U38/((U38_wave)**2)*c*1e8*3.63e-30
+
+    B_wave = 4554
+    B_band = 915./2.
+    B = df_photometry.loc[ID_no].f_B/((B_wave)**2)*c*1e8*3.63e-30
+    B_err = df_photometry.loc[ID_no].e_B/((B_wave)**2)*c*1e8*3.63e-30
+
+    V_wave = 5343
+    V_band = 900./2.
+    V = df_photometry.loc[ID_no].f_V/((V_wave)**2)*c*1e8*3.63e-30
+    V_err = df_photometry.loc[ID_no].e_V/((V_wave)**2)*c*1e8*3.63e-30
+
+    Rc_wave = 6411
+    Rc_band = 1602./2.
+    Rc = df_photometry.loc[ID_no].f_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
+    Rc_err = df_photometry.loc[ID_no].e_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
+
+    I_wave = 8554
+    I_band = 1504./2.
+    I = df_photometry.loc[ID_no].f_I/((I_wave)**2)*c*1e8*3.63e-30
+    I_err = df_photometry.loc[ID_no].e_I/((I_wave)**2)*c*1e8*3.63e-30
+    
+    
+    # MUSYC      | Cardamone et al. 2010                 
+    #f_IA427 e_IA427 f_IA445 e_IA445 f_IA505 e_IA505 f_IA527 e_IA527 f_IA550 e_IA550 f_IA574 
+    #e_IA574 f_IA598 e_IA598 f_IA624 e_IA624 f_IA651 e_IA651 f_IA679 e_IA679 f_IA738 e_IA738 
+    #f_IA767 e_IA767 f_IA797 e_IA797 f_IA856 e_IA856 
+    # IA427: 4253, IA445: 4445, IA464: 4631, IA484: 4843, IA505: 5059, IA527: 5256, IA550: 5492, IA574: 5760
+    # IA598: 6003, IA624: 6227, IA651: 6491, IA679: 6778, IA709: 7070, IA738: 7356, IA768: 7676, IA797: 7962
+    # IA827:8243, IA856:8562
+    IA427_wave = 4253
+    IA427_band = 210./2.
+    IA427 = df_photometry.loc[ID_no].f_IA427/IA427_wave**2*c*1e8*3.63e-30
+    IA427_err = df_photometry.loc[ID_no].e_IA427/IA427_wave**2*c*1e8*3.63e-30
+    
+    IA445_wave = 4445
+    IA445_band = 204./2.
+    IA445 = df_photometry.loc[ID_no].f_IA445/IA445_wave**2*c*1e8*3.63e-30
+    IA445_err = df_photometry.loc[ID_no].e_IA427/IA445_wave**2*c*1e8*3.63e-30
+    
+    IA505_wave = 5059
+    IA505_band = 234./2.
+    IA505 = df_photometry.loc[ID_no].f_IA505/IA505_wave**2*c*1e8*3.63e-30
+    IA505_err = df_photometry.loc[ID_no].e_IA505/IA505_wave**2*c*1e8*3.63e-30
+    
+    IA527_wave = 5256
+    IA527_band = 243./2.
+    IA527 = df_photometry.loc[ID_no].f_IA527/IA527_wave**2*c*1e8*3.63e-30
+    IA527_err = df_photometry.loc[ID_no].e_IA527/IA527_wave**2*c*1e8*3.63e-30
+    
+    IA550_wave = 5492
+    IA550_band = 276./2.
+    IA550 = df_photometry.loc[ID_no].f_IA550/IA550_wave**2*c*1e8*3.63e-30
+    IA550_err = df_photometry.loc[ID_no].e_IA550/IA550_wave**2*c*1e8*3.63e-30
+    
+    IA574_wave = 5760
+    IA574_band = 276./2.
+    IA574 = df_photometry.loc[ID_no].f_IA574/IA574_wave**2*c*1e8*3.63e-30
+    IA574_err = df_photometry.loc[ID_no].e_IA574/IA574_wave**2*c*1e8*3.63e-30
+    
+    IA598_wave = 6003
+    IA598_band = 297./2.
+    IA598 = df_photometry.loc[ID_no].f_IA598/IA598_wave**2*c*1e8*3.63e-30
+    IA598_err = df_photometry.loc[ID_no].e_IA598/IA598_wave**2*c*1e8*3.63e-30
+    
+    IA624_wave = 6227
+    IA624_band = 300./2.
+    IA624 = df_photometry.loc[ID_no].f_IA624/IA624_wave**2*c*1e8*3.63e-30
+    IA624_err = df_photometry.loc[ID_no].e_IA624/IA624_wave**2*c*1e8*3.63e-30
+    
+    IA651_wave = 6491
+    IA651_band = 324./2.
+    IA651 = df_photometry.loc[ID_no].f_IA651/IA651_wave**2*c*1e8*3.63e-30
+    IA651_err = df_photometry.loc[ID_no].e_IA651/IA651_wave**2*c*1e8*3.63e-30
+    
+    IA679_wave = 6778
+    IA679_band = 339./2.
+    IA679 = df_photometry.loc[ID_no].f_IA679/IA679_wave**2*c*1e8*3.63e-30
+    IA679_err = df_photometry.loc[ID_no].e_IA679/IA679_wave**2*c*1e8*3.63e-30
+    
+    IA738_wave = 7356
+    IA738_band = 324./2.
+    IA738 = df_photometry.loc[ID_no].f_IA738/IA738_wave**2*c*1e8*3.63e-30
+    IA738_err = df_photometry.loc[ID_no].e_IA738/IA738_wave**2*c*1e8*3.63e-30
+    
+    IA767_wave = 7676
+    IA767_band = 366./2.
+    IA767 = df_photometry.loc[ID_no].f_IA767/IA767_wave**2*c*1e8*3.63e-30
+    IA767_err = df_photometry.loc[ID_no].e_IA767/IA767_wave**2*c*1e8*3.63e-30
+    
+    IA797_wave = 7962
+    IA797_band = 354./2.
+    IA797 = df_photometry.loc[ID_no].f_IA797/IA797_wave**2*c*1e8*3.63e-30
+    IA797_err = df_photometry.loc[ID_no].e_IA797/IA797_wave**2*c*1e8*3.63e-30
+    
+    IA856_wave = 8562
+    IA856_band = 324./2.
+    IA856 = df_photometry.loc[ID_no].f_IA856/IA856_wave**2*c*1e8*3.63e-30
+    IA856_err = df_photometry.loc[ID_no].e_IA856/IA856_wave**2*c*1e8*3.63e-30
+     
+    # GOODS      |Giavalisco et al. 2004 | F435W,  F606W, F775W, F850LP|
+    # https://uknowledge.uky.edu/cgi/viewcontent.cgi?referer=&httpsredir=1&article=1264&context=physastron_facpub
+    # Also on Guo et al. 2013
+    F435W_wave = 4317
+    F435W_band = 920./2.
+    F435W = df_photometry.loc[ID_no].f_F435W/((F435W_wave)**2)*c*1e8*3.63e-30
+    F435W_err = df_photometry.loc[ID_no].e_F435W/((F435W_wave)**2)*c*1e8*3.63e-30
+    
+    F606W_wave = 5918
+    F606W_band = 2324./2.
+    F606W = df_photometry.loc[ID_no].f_F606W/((F606W_wave)**2)*c*1e8*3.63e-30
+    F606W_err = df_photometry.loc[ID_no].e_F606W/((F606W_wave)**2)*c*1e8*3.63e-30
+    
+    F775W_wave = 7693
+    F775W_band = 1511./2.
+    F775W = df_photometry.loc[ID_no].f_F775W/((F775W_wave)**2)*c*1e8*3.63e-30
+    F775W_err = df_photometry.loc[ID_no].e_F775W/((F775W_wave)**2)*c*1e8*3.63e-30
+    
+    F850LP_wave = 9055
+    F850LP_band = 1236./2.
+    F850LP = df_photometry.loc[ID_no].f_F850LP/((F850LP_wave)**2)*c*1e8*3.63e-30
+    F850LP_err = df_photometry.loc[ID_no].e_F850LP/((F850LP_wave)**2)*c*1e8*3.63e-30
+    
+    
+    # CANDELS    | Koekemoer et al. 2011, what wavelength this should take? : the same as above        
+    F606Wcand_wave = 5918
+    F606Wcand_band = 2324./2.
+    F606Wcand = df_photometry.loc[ID_no].f_F606Wcand/((F606Wcand_wave)**2)*c*1e8*3.63e-30
+    F606Wcand_err = df_photometry.loc[ID_no].e_F606Wcand/((F606Wcand_wave)**2)*c*1e8*3.63e-30
+    
+    F814Wcand_wave = 8047
+    F814Wcand_band = 1826./2.
+    F814Wcand = df_photometry.loc[ID_no].f_F814Wcand/((F814Wcand_wave)**2)*c*1e8*3.63e-30
+    F814Wcand_err = df_photometry.loc[ID_no].e_F814Wcand/((F814Wcand_wave)**2)*c*1e8*3.63e-30
+    
+    F850LPcand_wave = 9055
+    F850LPcand_band = 1236./2.
+    F850LPcand = df_photometry.loc[ID_no].f_F850LPcand/((F850LPcand_wave)**2)*c*1e8*3.63e-30
+    F850LPcand_err = df_photometry.loc[ID_no].e_F850LPcand/((F850LPcand_wave)**2)*c*1e8*3.63e-30
+        
+    # CANDELS    | Grogin et al. 2011, Koekemoer et al. 2011|
+    F125W_wave = 12486
+    F125W_band = 3005./2.
+    F125W = df_photometry.loc[ID_no].f_F125W/((F125W_wave)**2)*c*1e8*3.63e-30
+    F125W_err = df_photometry.loc[ID_no].e_F125W/((F125W_wave)**2)*c*1e8*3.63e-30
+    
+    F160W_wave = 15370
+    F160W_band = 2874./2.
+    F160W = df_photometry.loc[ID_no].f_F160W/((F160W_wave)**2)*c*1e8*3.63e-30 #http://www.stsci.edu/hst/wfc3/design/documents/handbooks/currentIHB/c07_ir06.html
+    F160W_err = df_photometry.loc[ID_no].e_F160W/((F160W_wave)**2)*c*1e8*3.63e-30
+    
+    # 3D-HST     | Brammer et al. 2012        
+    F140W_wave = 13635
+    F140W_band = 3947./2.
+    F140W = df_photometry.loc[ID_no].f_F140W/((F140W_wave)**2)*c*1e8*3.63e-30 #http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=HST/WFC3_IR.F140W
+    F140W_err = df_photometry.loc[ID_no].e_F140W/((F140W_wave)**2)*c*1e8*3.63e-30
+
+    #  J, H, Ks    | ESO/GOODS  | Retzlaff et al. 2010, Wuyts et al. 2008  |
+    #  J: 1.25, H: 1.65, Ks: 2.1605
+    J_wave = 1.25e4
+    J_band = 0.29e4/2.
+    J = df_photometry.loc[ID_no].f_J/J_wave**2*c*1e8*3.63e-30
+    J_err = df_photometry.loc[ID_no].e_J/J_wave**2*c*1e8*3.63e-30
+    
+    H_wave = 1.65e4
+    H_band = 0.3e4/2.
+    H = df_photometry.loc[ID_no].f_H/H_wave**2*c*1e8*3.63e-30
+    H_err = df_photometry.loc[ID_no].e_H/H_wave**2*c*1e8*3.63e-30
+    
+    Ks_wave = 2.1605e4
+    Ks_band = 0.27e4/2.
+    Ks = df_photometry.loc[ID_no].f_Ks/Ks_wave**2*c*1e8*3.63e-30
+    Ks_err = df_photometry.loc[ID_no].e_Ks/Ks_wave**2*c*1e8*3.63e-30
+    
+    # J, Ks    | TENIS      | Hsieh et al. 2012       
+    # J: 12481, Ks: 21338 tenisJ
+    tenisJ_wave = 12481
+    tenisJ_band = 1588./2.
+    tenisJ = df_photometry.loc[ID_no].f_tenisJ/tenisJ_wave**2*c*1e8*3.63e-30
+    tenisJ_err = df_photometry.loc[ID_no].e_tenisJ/tenisJ_wave**2*c*1e8*3.63e-30
+    
+    tenisK_wave = 21338
+    tenisK_band = 3270./2.
+    tenisK = df_photometry.loc[ID_no].f_tenisK/tenisK_wave**2*c*1e8*3.63e-30
+    tenisK_err = df_photometry.loc[ID_no].e_tenisK/tenisK_wave**2*c*1e8*3.63e-30
+    
+    wave_list = np.array([U_wave, R_wave, U38_wave, B_wave, V_wave, Rc_wave, I_wave, \
+                        IA427_wave, IA445_wave, IA505_wave, IA527_wave, IA550_wave,\
+                        IA574_wave, IA598_wave, IA624_wave, IA651_wave, IA679_wave, IA738_wave, IA767_wave, IA797_wave, IA856_wave,\
+                        F435W_wave, F606W_wave, F775W_wave, F850LP_wave, F606Wcand_wave, F814Wcand_wave, F850LPcand_wave,\
+                        F125W_wave, F140W_wave, F160W_wave, J_wave, H_wave, Ks_wave, tenisJ_wave, tenisK_wave])
+
+    band_list = np.array([U_band, R_band, U38_band, B_band, V_band, Rc_band, I_band, \
+                        IA427_band, IA445_band, IA505_band, IA527_band, IA550_band,\
+                        IA574_band, IA598_band, IA624_band, IA651_band, IA679_band, IA738_band, IA767_band, IA797_band, IA856_band,\
+                        F435W_band, F606W_band, F775W_band, F850LP_band, F606Wcand_band, F814Wcand_band, F850LPcand_band,\
+                        F125W_band, F140W_band, F160W_band, J_band, H_band, Ks_band, tenisJ_band, tenisK_band])
+    
+    photometric_flux = np.array([U, R, U38, B, V, Rc, I, IA427, IA445, IA505, IA527, IA550, IA574, IA598, IA624, IA651, IA679, IA738, IA767, IA797, IA856, \
+                                F435W, F606W, F775W, F850LP, F606Wcand, F814Wcand, F850LPcand, F125W, F140W, F160W, J, H, Ks, tenisJ, tenisK])
+    
+    photometric_flux_err = np.array([U_err+0.03*U, R_err+0.03*R, U38_err+0.03*U38, B_err+0.03*B, V_err+0.03*V, Rc_err+0.03*Rc, I_err+0.03*I,\
+                                    IA427_err+0.03*IA427, IA445_err+0.03*IA445, IA505_err+0.03*IA505, IA527_err+0.03*IA527, IA550_err+0.03*IA550, IA574_err+0.03*IA574,\
+                                    IA598_err+0.03*IA598, IA624_err+0.03*IA624, IA651_err+0.03*IA651, IA679_err+0.03*IA679, IA738_err+0.03*IA738, IA767_err+0.03*IA767,\
+                                    IA797_err+0.03*IA797, IA856_err+0.03*IA856, \
+                                    F435W_err+0.1*F435W,  F606W_err+0.1*F606W, F775W_err+0.1*F775W, F850LP_err+0.1*F850LP,\
+                                    F606Wcand_err+0.1*F606Wcand, F814Wcand_err+0.1*F814Wcand, F850LPcand_err+0.1*F850LPcand, F125W_err+0.1*F125W, F140W_err+0.1*F140W, F160W_err+0.1*F160W,\
+                                    J_err+0.03*J, H_err+0.03*H, Ks_err+0.03*Ks, tenisJ_err+0.03*tenisJ, tenisK_err+0.03*tenisK])
+#-------------------------------------------------Initial Reduce the spectra ----------------------------------------------------------
+    print('-------------------------------------Initial fit ---------------------------------------------------------------------------------------')
+    [x, y, y_err, wave_list, band_list, photometric_flux, photometric_flux_err] = \
+    derive_1D_spectra_Av_corrected(OneD_1, redshift_1, row, wave_list, band_list, photometric_flux, photometric_flux_err, A_v)
+    if redshift< 0.49:
+        try:
+            chi_square_list.loc[row,'grism_index'] = Lick_index_ratio(x,y)
+        except:
+            pass
+    # Testing fitting a line
+    photo_list_for_scaling = []
+    photo_err_list_for_scaling = []
+    grism_flux_list_for_scaling = []
+    grism_flux_err_list_for_scaling = []
+    grism_wave_list_for_scaling =[]
+    for i in range(len(wave_list)):
+        if wave_list[i]-band_list[i] > x[0] and wave_list[i] + band_list[i] < x[-1]:
+            scale_index = find_nearest(x, wave_list[i])
+            photo_list_for_scaling.append(photometric_flux[i])
+            photo_err_list_for_scaling.append(photometric_flux_err[i])
+            grism_flux_list_for_scaling.append(y[scale_index])
+            grism_flux_err_list_for_scaling.append(y_err[scale_index])
+            grism_wave_list_for_scaling.append(x[scale_index])
+    photo_array_for_scaling = np.array(photo_list_for_scaling)
+    photo_err_array_for_scaling = np.array(photo_err_list_for_scaling)
+    grism_flux_array_for_scaling = np.array(grism_flux_list_for_scaling)
+    grism_flux_err_array_for_scaling = np.array(grism_flux_err_list_for_scaling)
+    grism_wave_array_for_scaling = np.array(grism_wave_list_for_scaling)
+    print('Number of photometric points for rescaling:',len(photo_array_for_scaling))
+    print(np.mean(photo_array_for_scaling/grism_flux_array_for_scaling))
+    coeff = np.mean(photo_array_for_scaling/grism_flux_array_for_scaling)
+    y = y*coeff
+# Using bounds to constrain
+# Test with M05 models
+    print('____________________M05_________________________ Optimization__________________________')
+    X = np.array([galaxy_age, intrinsic_Av])
+    bnds = ((0.01, 13.0), (0.0, 4.0))
+    sol = optimize.minimize(minimize_age_AV_vector_weighted, X, bounds = bnds, method='TNC')#, options = {'disp': True})
+    # print('Optimized weighted reduced chisqure result:', sol)
+    [age_prior_optimized, AV_prior_optimized] = sol.x
+    X = sol.x
+    x2_optimized = minimize_age_AV_vector_weighted(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
+    chi_square_list.loc[row,'M05_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'M05_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_M05_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_M05_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_M05_opt'] = x2_phot
+
+    #--- Plot
+    X=sol.x
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
+    model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
+    plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+    # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+    #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+    print(relative_sigma[0, :index0])
+    index0 = 0
+    # relative_photo = np.zeros([1,(len(wave_list))])
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+            # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+        index0 = index0+1
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+    # plt.ylim([0.6,1.5])
+    # plt.ylim([0.9,1.1])
+    # plt.ylim([0.7,1.45])
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M05_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M05_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        print(np.size(samples))
+        samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
+        tok = time.clock()
+        multi_time = tok-tik
+        print(np.size(samples))
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        print('Time to run M05 MCMC:'+str(tok-tik)) 
+        print('sample size:',samples.size)       
+    try:
+        if samples.size > 1e3:
+            value2 = np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                 labels=["age(Gyr)", r"$\rm A_V$"],
+                 truths=[age_prior_optimized, AV_prior_optimized],
+                 levels = (1-np.exp(-0.5),),
+                 # range=[(0.01, 13.0), (0.0, 4.0)],
+                 show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf"
+            fig.savefig(figname)
+            fig.clf()
+            # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+            # fig.clf()
+            print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
+            chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+
+            n = len(x)
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
+            plt.step(x, y, color='r',lw=3)
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
+            model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
+            plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+            plt.semilogx()
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+            print(relative_sigma[0, index0])
+            # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+            # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+            #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            index0 = 0
+            # relative_photo = np.zeros([1,(len(wave_list))])
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                    # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                index0 = index0+1
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            # plt.ylim([0.9,1.1])
+            # plt.ylim([0.7,1.45])
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M05_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
+            plt.savefig(figname)
+            plt.clf()
+            # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M05_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+        else :
+            with Pool() as pool:
+                # nsteps=nsteps*2#+(samples.size-1e3)*1.2
+                print('modified steps:',nsteps)
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
+                tok = time.clock()
+                multi_time = tok-tik
+                print('modified sample size',np.size(samples))
+
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+                print('Time to run M05 MCMC:'+str(tok-tik))     
+            if samples.size > 1e3:
+                value2 = np.percentile(samples, 50, axis=0)
+                [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                     labels=["age(Gyr)", r"$\rm A_V$"],
+                     truths=[age_prior_optimized, AV_prior_optimized],
+                     levels = (1-np.exp(-0.5),),
+                     # range=[(0.01, 13.0), (0.0, 4.0)],
+                     show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps*2)+'_'+str(ID)+'_'+str(region)+".pdf"
+                fig.savefig(figname)
+                fig.clf()
+                # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+                # fig.clf()
+                print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
+                chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+
+                n = len(x)
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
+                plt.step(x, y, color='r',lw=3)
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
+                model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
+                plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+                plt.semilogx()
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                relative_sigma = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+                print(relative_sigma[0, index0])
+                # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+                # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+                #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+                index0 = 0
+                # relative_photo = np.zeros([1,(len(wave_list))])
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                        # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                    except:
+                        pass
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                    index0 = index0+1
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                # plt.ylim([0.9,1.1])
+                # plt.ylim([0.7,1.45])
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M05_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
+                plt.savefig(figname)
+                plt.clf()
+                # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M05_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')   
+    except:
+        pass
+
+# Test with the new M13 models
+    print('____________________M13_________________________ Optimization__________________________')
+    bnds = ((0.0, 13.0), (0.0, 4.0))
+    sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='TNC')#, options = {'disp': True})
+    # print('Optimized M13 weighted reduced chisqure result:', sol_M13)
+    [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
+    X = sol_M13.x
+    x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+    chi_square_list.loc[row,'M13_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'M13_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
+    
+    #--- Plot
+    X = sol_M13.x
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
+    model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
+    plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+    print(relative_sigma[0, index0])
+    # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+    # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+    #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+    index0 = 0
+    # relative_photo = np.zeros([1,(len(wave_list))])
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+            # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+        index0 = index0+1
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    # plt.ylim([0.75,1.5])
+    # plt.ylim([0.9,1.1])
+    # plt.ylim([0.7,1.45])
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M13_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol_M13.x[0])+'Gyr_AV'+"{0:.2f}".format(sol_M13.x[1])+'-SSP.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M13_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
+        sampler.run_mcmc(p0,nsteps, progress=True)
+        print(np.size(samples))
+
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
+        print(np.size(samples))
+
+        tok = time.clock()
+        multi_time = tok-tik
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        print('Time to run M13 MCMC:'+str(tok-tik))
+
+    try:
+        if samples.size > 1e3 :
+            value2=np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                 labels=["age(Gyr)", r"$\rm A_V$"],
+                 levels=(1-np.exp(-0.5),),
+                 truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                 show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+            # Loop over the histograms
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf"
+            fig.savefig(figname)
+            # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+            fig.clf()
+            print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+            chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
+            n = len(x)
+
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
+            plt.step(x, y, color='r',lw=3)
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
+            model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
+            plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+            plt.semilogx()
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+            plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+                (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            index0 = 0
+            relative_photo = np.zeros([1,(len(wave_list))])
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                    relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                index0 = index0+1
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            plt.ylim([0.75,1.5])
+            plt.ylim([0.9,1.1])
+            plt.ylim([0.7,1.45])
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M13_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
+            plt.savefig(figname)
+            plt.clf()
+            # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M13_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+        else:
+            with Pool() as pool:
+                # nsteps=nsteps*2#+(samples.size-1e3)*1.2
+                print('modified steps:',nsteps)
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
+                sampler.run_mcmc(p0,nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
+                tok = time.clock()
+                multi_time = tok-tik
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+                print('Time to run M13 MCMC:'+str(tok-tik))
+            if samples.size > 1e3 :
+                value2=np.percentile(samples, 50, axis=0)
+                [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                     labels=["age(Gyr)", r"$\rm A_V$"],
+                     levels=(1-np.exp(-0.5),),
+                     truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                     show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                # Loop over the histograms
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps*2)+'_'+str(ID)+'_'+str(region)+".pdf"
+                fig.savefig(figname)
+                # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+                fig.clf()
+                print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+                chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
+                n = len(x)
+
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
+                plt.step(x, y, color='r',lw=3)
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
+                model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
+                plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+                plt.semilogx()
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                relative_sigma = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+                # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+                #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+                print(relative_sigma[0, index0])
+                index0 = 0
+                # relative_photo = np.zeros([1,(len(wave_list))])
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                        # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                    except:
+                        pass
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                    index0 = index0+1
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                # plt.ylim([0.75,1.5])
+                # plt.ylim([0.9,1.1])
+                # plt.ylim([0.7,1.45])
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M13_MCMC50_'+str(nsteps*2)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol_M13.x[0])+'Gyr_AV'+"{0:.2f}".format(sol_M13.x[1])+'-SSP.pdf'
+                plt.savefig(figname)
+                plt.clf()
+                # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_M13_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+    except:
+        pass
+
+# Test with the new BC03 models
+    print('____________________BC03_________________________ Optimization__________________________')
+    bnds = ((0.0, 13.0), (0.0, 4.0))
+    sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='TNC')#, options = {'disp': True})
+    # print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
+    [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
+    X = sol_BC03.x
+    x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+    chi_square_list.loc[row,'BC_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'BC_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
+
+    #--- Plot
+    X = sol_BC03.x
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+    plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+    model_wave = BC03_wave_list_num
+    model_flux = BC03_flux_attenuated
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+    # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+    #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+    print(relative_sigma[0, index0])
+    index0 = 0
+    # relative_photo = np.zeros([1,(len(wave_list))])
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+            # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+        index0 = index0+1
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+    # plt.ylim([0.6,1.5])
+    # plt.ylim([0.9,1.1])
+    # plt.ylim([0.7,1.45])
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_BC03_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol_BC03.x[0])+'Gyr_AV'+"{0:.2f}".format(sol_BC03.x[1])+'-SSP.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_BC03_opt_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        print(np.size(samples))
+
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
+        print(np.size(samples))
+
+        tok = time.clock()
+        multi_time = tok-tik
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        print('Time to run BC03 MCMC:'+str(tok-tik))
+    try:
+        if samples.size > 1e3:
+            value2=np.percentile(samples,50,axis=0)
+            [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                                labels=["age(Gyr)", r"$\rm A_V$"],\
+                                truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
+                                levels = (1-np.exp(-0.5),),\
+                                show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf"
+            fig.savefig(figname)
+            # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_BC03_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+            fig.clf()
+            print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+            
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+            chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+            n = len(x)
+            
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
+            plt.step(x, y, color='r',lw=3)
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+            plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+            model_wave = BC03_wave_list_num
+            model_flux = BC03_flux_attenuated            
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+            plt.semilogx()
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+            plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+                (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            index0 = 0
+            relative_photo = np.zeros([1,(len(wave_list))])
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                    relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                index0 = index0+1
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+            plt.ylim([0.6,1.5])
+            plt.ylim([0.9,1.1])
+            plt.ylim([0.7,1.45])
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
+            plt.savefig(figname)
+            plt.clf()
+            # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+            # plt.clf()
+        else:
+            with Pool() as pool:
+                # nsteps=nsteps*2#+(samples.size-1e3)*1.2
+                print('modified steps:',nsteps)
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
+                tok = time.clock()
+                multi_time = tok-tik
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+                print('Time to run BC03 MCMC:'+str(tok-tik))
+            if samples.size > 1e3:
+                value2=np.percentile(samples,50,axis=0)
+                [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                                    labels=["age(Gyr)", r"$\rm A_V$"],\
+                                    truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
+                                    levels = (1-np.exp(-0.5),),\
+                                    show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps*2)+'_'+str(ID)+'_'+str(region)+".pdf"
+                fig.savefig(figname)
+                # fig.savefig("/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/goodss_triangle_BC03_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+".pdf")
+                fig.clf()
+                print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+                
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+                chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+                n = len(x)
+                
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
+                plt.step(x, y, color='r',lw=3)
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+                plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+                model_wave = BC03_wave_list_num
+                model_flux = BC03_flux_attenuated            
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+                plt.semilogx()
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                relative_sigma = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+                # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+                #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
+                print(relative_sigma[0, index0])
+                index0 = 0
+                # relative_photo = np.zeros([1,(len(wave_list))])
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                        # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                    except:
+                        pass
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                    index0 = index0+1
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+                # plt.ylim([0.6,1.5])
+                # plt.ylim([0.9,1.1])
+                # plt.ylim([0.7,1.45])
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_BC03_MCMC50_'+str(nsteps*2)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol_BC03.x[0])+'Gyr_AV'+"{0:.2f}".format(sol_BC03.x[1])+'-SSP.pdf'
+                plt.savefig(figname)
+                plt.clf()
+                # plt.savefig('/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSS_548_316_20180911/20200207/GOODSS_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf')
+                # plt.clf()   
+    except:
+        pass
+
+    chi2_array=chi_square_list.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
+    AV_array=chi_square_list.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
+    index = find_nearest(chi2_array,1)
+    AV_opt = float(AV_array[index])
+    spectra_extinction = calzetti00(x, AV_opt, 4.05)
+    spectra_flux_correction = 10 ** (-0.4 * spectra_extinction)
+    y_corr = y / spectra_flux_correction
+    if redshift<0.49:
+        try:
+            chi_square_list.loc[row,'grism_index_AV_corr'] = Lick_index_ratio(x,y_corr)
+        except:
+            pass
+    # print(chi_square_list.loc[row])
+chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodss-three_models_optimized_20200301_scale_photo.csv')
+# chi_square_list_final=model_from_chi2(chi_square_list)
+# chi_square_list_final.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodss-three_models_optimized_20200224_age_AV_final.csv')
+
