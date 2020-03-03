@@ -306,6 +306,12 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
     y = y[mask_large_err]
     y_err = y_err[mask_large_err]
     
+    mask_non_neg_photo = np.where(photometric_flux>0)
+    wave_list = wave_list[mask_non_neg_photo]
+    band_list = band_list[mask_non_neg_photo]
+    photometric_flux = photometric_flux[mask_non_neg_photo]
+    photometric_flux_err = photometric_flux_err[mask_non_neg_photo]
+
     return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band 
 def plot_1D_spectra_Av_corrected(x, y, y_err, z_NIR, wave_list, photometric_flux, photometric_flux_err, model1_wave, model1_flux, intrinsic_Av, region, ID, model_name='M05'):
     
@@ -686,7 +692,7 @@ def model_from_chi2(df_opt):
                                'M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
         AV_std_array=df_opt.loc[i,['M05_AV_std','M13_AV_std','BC_AV_std',\
                                    'M05_AV_std','M13_AV_std','BC_AV_std']].values        
-        index = find_nearest(chi2_array,1)    
+        index = find_nearest(chi2_array,0)    
         df_opt.loc[i,'model'] = np.mod(index,3)+1
         df_opt.loc[i,'model_new']=model_identification(chi2_array)
         df_opt.loc[i,'best_chi2']=chi2_array[index]
@@ -697,23 +703,7 @@ def model_from_chi2(df_opt):
         df_opt.loc[i,'AV_opt']=AV_array[index]
         df_opt.loc[i,'AV_opt_std']=AV_std_array[index]
     return df_opt
-    for i in range(len(df_opt)):
-        chi2_array=df_opt.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
-        chi2_spec_array=df_opt.loc[i,['x2_spectra_M05_opt','x2_spectra_M13_opt','x2_spectra_BC_opt','x2_spectra_M05_MCMC50','x2_spectra_M13_MCMC50','x2_spectra_BC_MCMC50']].values
-        chi2_phot_array=df_opt.loc[i,['x2_photo_M05_opt','x2_photo_M13_opt','x2_photo_BC_opt','x2_photo_M05_MCMC50','x2_photo_M13_MCMC50','x2_photo_BC_MCMC50']].values
-        age_array=df_opt.loc[i,['M05_age_opt','M13_age_opt','BC_age_opt','M05_age_MCMC50','M13_age_MCMC50','BC_age_MCMC50']].values
-        age_std_array=df_opt.loc[i,['M05_age_std','M13_age_std','BC_age_std','M05_age_std','M13_age_std','BC_age_std']].values
-        AV_array=df_opt.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
-        AV_std_array=df_opt.loc[i,['M05_AV_std','M13_AV_std','BC_AV_std','M05_AV_std','M13_AV_std','BC_AV_std']].values
-        index = find_nearest(chi2_array,1)
-        df_opt.loc[i,'model']=np.mod(index,3)+1
-        df_opt.loc[i,'best_chi2']=chi2_array[index]
-        df_opt.loc[i,'best_chi2_spec']=chi2_spec_array[index]
-        df_opt.loc[i,'best_chi2_phot']=chi2_phot_array[index]
-        df_opt.loc[i,'age_opt']=age_array[index]
-        df_opt.loc[i,'age_opt_std']=age_std_array[index]
-        df_opt.loc[i,'AV_opt']=AV_array[index]
-        df_opt.loc[i,'AV_opt_std']=AV_std_array[index]
+
 columns = ['ID','region','field',
           'M05_age_opt','M05_AV_opt','M13_age_opt','M13_AV_opt','BC_age_opt','BC_AV_opt',\
           'x2_spectra_M05_opt','x2_photo_M05_opt','x2_spectra_M13_opt','x2_photo_M13_opt','x2_spectra_BC_opt','x2_photo_BC_opt',\
@@ -830,20 +820,20 @@ def minimize_age_AV_vector_weighted(X):
     Flux_M05_norm_new = M05_flux_center[F_M05_index]
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
-    print('Age',galaxy_age, age_prior)
+    # print('Age',galaxy_age, age_prior)
     binning_index = find_nearest(model1[0,:],np.median(x));
     if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new, binning_size)
-        print('model flux before binning:',smooth_Flux_Ma_1Gyr_new)
-        print('binned model flux', model_flux_binned)
+        # print('model flux before binning:',smooth_Flux_Ma_1Gyr_new)
+        # print('binned model flux', model_flux_binned)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     else:
         binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     
     return 0.5*weight1*x2+0.5*weight2*x2_photo
@@ -946,12 +936,12 @@ def lg_minimize_age_AV_vector_weighted(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     else:
         binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     
     if 0.01<galaxy_age<13.0 and 0.0<intrinsic_Av<4.0 and not np.isinf(x2+1e-3*x2_photo):
@@ -1076,12 +1066,12 @@ def minimize_age_AV_vector_weighted_return_flux(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     else:
         binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
+        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     
     return 0.5*weight1*x2+0.5*weight2*x2_photo, model1[0,:], smooth_Flux_Ma_1Gyr_new
@@ -1203,12 +1193,12 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
+        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     else:
         binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
+        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size) 
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     
     return x2,x2_photo
@@ -1316,12 +1306,12 @@ def minimize_age_AV_vector_weighted_M13(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     else:
         binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     
     return 0.5*weight1*x2+0.5*weight2*x2_photo
@@ -1428,12 +1418,12 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     else:
         binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
 
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     
@@ -1544,12 +1534,12 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     else:
         binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
 
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     
@@ -1657,12 +1647,12 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
         model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     else:
         binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
+        # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
  
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     
@@ -1697,15 +1687,15 @@ def minimize_age_AV_vector_weighted_BC03(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
-    print('BC x2_nu',x2,x2_photo,0.5*weight1*x2+0.5*weight2*x2_photo)
+    # print('BC x2_nu',x2,x2_photo,0.5*weight1*x2+0.5*weight2*x2_photo)
     return 0.5*weight1*x2+0.5*weight2*x2_photo
 def lg_minimize_age_AV_vector_weighted_BC03(X):
     galaxy_age= X[0]
@@ -1737,13 +1727,13 @@ def lg_minimize_age_AV_vector_weighted_BC03(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
@@ -1780,13 +1770,13 @@ def minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)     
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)     
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     return 0.5*weight1*x2+0.5*weight2*x2_photo,BC03_flux_attenuated
@@ -1818,13 +1808,13 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     return x2,x2_photo
@@ -1858,13 +1848,13 @@ def minimize_age_AV_vector_weighted_BC03_mod(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     return 0.5*weight1*x2+0.5*weight2*x2_photo
@@ -1900,13 +1890,13 @@ def lg_minimize_age_AV_vector_weighted_return_BC03_mod(X):
         binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
         x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        print('bin data', binning_size, x2)
+        # print('bin data', binning_size, x2)
     else: 
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
         model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        print('bin model',binning_size, x2)
-    print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
+        # print('bin model',binning_size, x2)
+    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
     x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
@@ -1917,7 +1907,7 @@ def lg_minimize_age_AV_vector_weighted_return_BC03_mod(X):
 nsteps=1200
 current_dir = '/Volumes/My Passport/TPAGB/'
 outcome_dir = 'outcome/'
-plot_dir = 'plot/20200301_scale_photo/'
+plot_dir = 'plot/20200302_goodss/'
 
 # scale_to_photo=1.15
 for i in range(len(df)):
@@ -1938,10 +1928,11 @@ for i in range(len(df)):
     
     chi_square_list.loc[row,'ID'] = float(ID)
     chi_square_list.loc[row,'region'] = region
-    chi_square_list.loc[row,'field'] = 'aegis'
+    chi_square_list.loc[row,'field'] = 'goodss'
 
 # Photometry
     # ESO GOODS  |  Nonino et al. 2009
+    # Paranal_VIMOS U and VIMOS R
     U_wave = 3722
     U_band = 375.5/2.
     U = df_photometry.loc[ID_no].f_U/((U_wave)**2)*c*1e8*3.63e-30
@@ -1953,28 +1944,29 @@ for i in range(len(df)):
     R_err = df_photometry.loc[ID_no].e_R/((R_wave)**2)*c*1e8*3.63e-30
     
     
-    #  GaBoDs     | Hildebrandt et al. 2006, Erben 2005      |
-    U38_wave = 3706
+    #  GaBoDs     | Hildebrandt et al. 2006, Erben 2005      
+    # LaSilla WFI ESO 841-845.dat
+    U38_wave = 3706 # ESO 841
     U38_band = 357./2.
     U38 = df_photometry.loc[ID_no].f_U38/((U38_wave)**2)*c*1e8*3.63e-30
     U38_err = df_photometry.loc[ID_no].e_U38/((U38_wave)**2)*c*1e8*3.63e-30
 
-    B_wave = 4554
+    B_wave = 4554 # 842
     B_band = 915./2.
     B = df_photometry.loc[ID_no].f_B/((B_wave)**2)*c*1e8*3.63e-30
     B_err = df_photometry.loc[ID_no].e_B/((B_wave)**2)*c*1e8*3.63e-30
 
-    V_wave = 5343
+    V_wave = 5343 #843
     V_band = 900./2.
     V = df_photometry.loc[ID_no].f_V/((V_wave)**2)*c*1e8*3.63e-30
     V_err = df_photometry.loc[ID_no].e_V/((V_wave)**2)*c*1e8*3.63e-30
 
-    Rc_wave = 6411
+    Rc_wave = 6411 #844
     Rc_band = 1602./2.
     Rc = df_photometry.loc[ID_no].f_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
     Rc_err = df_photometry.loc[ID_no].e_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
 
-    I_wave = 8554
+    I_wave = 8554 # 845
     I_band = 1504./2.
     I = df_photometry.loc[ID_no].f_I/((I_wave)**2)*c*1e8*3.63e-30
     I_err = df_photometry.loc[ID_no].e_I/((I_wave)**2)*c*1e8*3.63e-30
@@ -2116,6 +2108,7 @@ for i in range(len(df)):
 
     #  J, H, Ks    | ESO/GOODS  | Retzlaff et al. 2010, Wuyts et al. 2008  |
     #  J: 1.25, H: 1.65, Ks: 2.1605
+    # ISSAC J, H, Ks: FJ/FJ/FK_BB.ASCII
     J_wave = 1.25e4
     J_band = 0.29e4/2.
     J = df_photometry.loc[ID_no].f_J/J_wave**2*c*1e8*3.63e-30
@@ -2133,6 +2126,7 @@ for i in range(len(df)):
     
     # J, Ks    | TENIS      | Hsieh et al. 2012       
     # J: 12481, Ks: 21338 tenisJ
+    # WIRCam J and Ks
     tenisJ_wave = 12481
     tenisJ_band = 1588./2.
     tenisJ = df_photometry.loc[ID_no].f_tenisJ/tenisJ_wave**2*c*1e8*3.63e-30
@@ -2158,13 +2152,13 @@ for i in range(len(df)):
     photometric_flux = np.array([U, R, U38, B, V, Rc, I, IA427, IA445, IA505, IA527, IA550, IA574, IA598, IA624, IA651, IA679, IA738, IA767, IA797, IA856, \
                                 F435W, F606W, F775W, F850LP, F606Wcand, F814Wcand, F850LPcand, F125W, F140W, F160W, J, H, Ks, tenisJ, tenisK])
     
-    photometric_flux_err = np.array([U_err+0.03*U, R_err+0.03*R, U38_err+0.03*U38, B_err+0.03*B, V_err+0.03*V, Rc_err+0.03*Rc, I_err+0.03*I,\
-                                    IA427_err+0.03*IA427, IA445_err+0.03*IA445, IA505_err+0.03*IA505, IA527_err+0.03*IA527, IA550_err+0.03*IA550, IA574_err+0.03*IA574,\
-                                    IA598_err+0.03*IA598, IA624_err+0.03*IA624, IA651_err+0.03*IA651, IA679_err+0.03*IA679, IA738_err+0.03*IA738, IA767_err+0.03*IA767,\
-                                    IA797_err+0.03*IA797, IA856_err+0.03*IA856, \
-                                    F435W_err+0.1*F435W,  F606W_err+0.1*F606W, F775W_err+0.1*F775W, F850LP_err+0.1*F850LP,\
-                                    F606Wcand_err+0.1*F606Wcand, F814Wcand_err+0.1*F814Wcand, F850LPcand_err+0.1*F850LPcand, F125W_err+0.1*F125W, F140W_err+0.1*F140W, F160W_err+0.1*F160W,\
-                                    J_err+0.03*J, H_err+0.03*H, Ks_err+0.03*Ks, tenisJ_err+0.03*tenisJ, tenisK_err+0.03*tenisK])
+    photometric_flux_err = np.array([U_err+0.1*U, R_err+0.1*R, U38_err+0.1*U38, B_err+0.1*B, V_err+0.1*V, Rc_err+0.1*Rc, I_err+0.1*I,\
+                                    IA427_err+0.1*IA427, IA445_err+0.1*IA445, IA505_err+0.1*IA505, IA527_err+0.1*IA527, IA550_err+0.1*IA550, IA574_err+0.1*IA574,\
+                                    IA598_err+0.1*IA598, IA624_err+0.1*IA624, IA651_err+0.1*IA651, IA679_err+0.1*IA679, IA738_err+0.1*IA738, IA767_err+013*IA767,\
+                                    IA797_err+0.1*IA797, IA856_err+0.1*IA856, \
+                                    F435W_err+0.03*F435W,  F606W_err+0.03*F606W, F775W_err+0.03*F775W, F850LP_err+0.03*F850LP,\
+                                    F606Wcand_err+0.03*F606Wcand, F814Wcand_err+0.03*F814Wcand, F850LPcand_err+0.03*F850LPcand, F125W_err+0.03*F125W, F140W_err+0.03*F140W, F160W_err+0.03*F160W,\
+                                    J_err+0.1*J, H_err+0.1*H, Ks_err+0.1*Ks, tenisJ_err+0.1*tenisJ, tenisK_err+0.1*tenisK])
 #-------------------------------------------------Initial Reduce the spectra ----------------------------------------------------------
     print('-------------------------------------Initial fit ---------------------------------------------------------------------------------------')
     [x, y, y_err, wave_list, band_list, photometric_flux, photometric_flux_err] = \
@@ -2250,7 +2244,7 @@ for i in range(len(df)):
     # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
     #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    print(relative_sigma[0, :index0])
+    # print(relative_sigma[0, :index0])
     index0 = 0
     # relative_photo = np.zeros([1,(len(wave_list))])
     for i in range(len(wave_list)):
@@ -2378,7 +2372,7 @@ for i in range(len(df)):
                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
             plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-            print(relative_sigma[0, index0])
+            # print(relative_sigma[0, :index0])
             # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
             # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
             #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
@@ -2507,7 +2501,7 @@ for i in range(len(df)):
                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                         index0 = index0+1
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                print(relative_sigma[0, index0])
+                # print(relative_sigma[0, :index0])
                 # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
                 # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
                 #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
@@ -2548,6 +2542,7 @@ for i in range(len(df)):
 # Test with the new M13 models
     print('____________________M13_________________________ Optimization__________________________')
     bnds = ((0.0, 13.0), (0.0, 4.0))
+    X = np.array([galaxy_age, intrinsic_Av])
     sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='TNC')#, options = {'disp': True})
     # print('Optimized M13 weighted reduced chisqure result:', sol_M13)
     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
@@ -2593,7 +2588,7 @@ for i in range(len(df)):
             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
             index0 = index0+1
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    print(relative_sigma[0, index0])
+    # print(relative_sigma[0, :index0])
     # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
     # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
     #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
@@ -2717,36 +2712,46 @@ for i in range(len(df)):
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
             relative_spectra = np.zeros([1,n])
             relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
             index0 = 0
             for wave in x:
                 if y[index0]>0.25 and y[index0]<1.35:
                     index = find_nearest(model_wave, wave);#print index
                     relative_spectra[0, index0] = y[index0]/model_flux[index]
                     relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
-            plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
-            plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
-                (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+            # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+            #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
             index0 = 0
-            relative_photo = np.zeros([1,(len(wave_list))])
+            # relative_photo = np.zeros([1,(len(wave_list))])
             for i in range(len(wave_list)):
                 try:
                     index = find_nearest(model_wave, wave_list[i])
-                    relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                    # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                 except:
                     pass
-                plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                 index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
-            plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+            # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             plt.tick_params(axis='both', which='major', labelsize=20)
             plt.tick_params(axis='both', which='minor', labelsize=20)
-            plt.ylim([0.75,1.5])
-            plt.ylim([0.9,1.1])
-            plt.ylim([0.7,1.45])
+            # plt.ylim([0.75,1.5])
+            # plt.ylim([0.9,1.1])
+            # plt.ylim([0.7,1.45])
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
             figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M13_MCMC50_'+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(sol.x[0])+'Gyr_AV'+"{0:.2f}".format(sol.x[1])+'-SSP.pdf'
             plt.savefig(figname)
@@ -2755,7 +2760,7 @@ for i in range(len(df)):
         else:
             with Pool() as pool:
                 # nsteps=nsteps*2#+(samples.size-1e3)*1.2
-                print('modified steps:',nsteps)
+                print('modified steps:',nsteps*2)
                 ndim, nwalkers = 2, 10
                 tik = time.clock()
                 p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
@@ -2849,7 +2854,7 @@ for i in range(len(df)):
                 # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
                 #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                print(relative_sigma[0, index0])
+                # print(relative_sigma[0, :index0])
                 index0 = 0
                 # relative_photo = np.zeros([1,(len(wave_list))])
                 for i in range(len(wave_list)):
@@ -2889,6 +2894,7 @@ for i in range(len(df)):
 # Test with the new BC03 models
     print('____________________BC03_________________________ Optimization__________________________')
     bnds = ((0.0, 13.0), (0.0, 4.0))
+    X = np.array([galaxy_age,intrinsic_Av])
     sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='TNC')#, options = {'disp': True})
     # print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
     [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
@@ -2938,7 +2944,7 @@ for i in range(len(df)):
     # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
     #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    print(relative_sigma[0, index0])
+    # print(relative_sigma[0, :index0])
     index0 = 0
     # relative_photo = np.zeros([1,(len(wave_list))])
     for i in range(len(wave_list)):
@@ -3056,32 +3062,42 @@ for i in range(len(df)):
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
             relative_spectra = np.zeros([1,n])
             relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
             index0 = 0
             for wave in x:
                 if y[index0]>0.25 and y[index0]<1.35:
                     index = find_nearest(model_wave, wave);#print index
                     relative_spectra[0, index0] = y[index0]/model_flux[index]
                     relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
-            plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
-            plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
-                (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            # plt.step(x[:index0], relative_spectra[0,:index0], color='r', linewidth=2)
+            # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
+            #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
+            plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+
             index0 = 0
-            relative_photo = np.zeros([1,(len(wave_list))])
+            # relative_photo = np.zeros([1,(len(wave_list))])
             for i in range(len(wave_list)):
                 try:
                     index = find_nearest(model_wave, wave_list[i])
-                    relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
+                    # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                 except:
                     pass
-                plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
+                # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                 index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
-            plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
-            plt.ylim([0.6,1.5])
-            plt.ylim([0.9,1.1])
-            plt.ylim([0.7,1.45])
+            # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+            # plt.ylim([0.6,1.5])
+            # plt.ylim([0.9,1.1])
+            # plt.ylim([0.7,1.45])
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
@@ -3186,7 +3202,7 @@ for i in range(len(df)):
                 # plt.fill_between(x[:index0],(relative_spectra[0,:index0]+relative_spectra_err[0,:index0]),\
                 #     (relative_spectra[0,:index0]-relative_spectra_err[0,:index0]),alpha=0.1)
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                print(relative_sigma[0, index0])
+                # print(relative_sigma[0, :index0])
                 index0 = 0
                 # relative_photo = np.zeros([1,(len(wave_list))])
                 for i in range(len(wave_list)):
@@ -3237,7 +3253,8 @@ for i in range(len(df)):
         except:
             pass
     # print(chi_square_list.loc[row])
-chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodss-three_models_optimized_20200301_scale_photo.csv')
+
+chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodss-three_models_optimized_20200302_scale_photo.csv')
 # chi_square_list_final=model_from_chi2(chi_square_list)
 # chi_square_list_final.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodss-three_models_optimized_20200224_age_AV_final.csv')
 
