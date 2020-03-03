@@ -227,8 +227,7 @@ def binning_spec_keep_shape(wave,flux,bin_size):
     for i in range((int(len(wave)/bin_size))):
         flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
     return wave_binned, flux_binned#, flux_err_binned
-
-def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, band_list, photometric_flux, photometric_flux_err, A_v):
+def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod, A_v):
     """
     OneD_1 is the oneD spectra
     redshift_1 is the redshift of the spectra
@@ -302,7 +301,8 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
     x = np.zeros(n)
     y = np.zeros(n)
     y_err = np.zeros(n)
-    contam = np.zeros(n)
+    # contam = np.zeros(n)
+    sensitivity = np.zeros(n)
 
     for i in range(0,n):
         x[i] = OneD_1[i][0]#/(1+redshift_1)
@@ -315,351 +315,25 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
         x[i] = x[i]/(1+redshift_1)
         y[i] = (OneD_1[i][1]-OneD_1[i][3])/OneD_1[i][6]*spectra_flux_correction#/Flux_0 # (flux-contamination)/sensitivity
         y_err[i] = OneD_1[i][2]/OneD_1[i][6]*spectra_flux_correction#/Flux_0
-        contam[i] = OneD_1[i][3]
-
-    contam_min, contam_max = np.percentile(contam,[16,84])
-    index_start = np.where(contam>=contam_min)[0][0]
-    index_end = np.where(contam<=contam_max)[0][-1]
-    x = x[index_start:index_end+1]#[int(n*2/10):int(n*8/10)]
-    y = y[index_start:index_end+1]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
-    y_err = y_err[index_start:index_end+1]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+        # contam[i] = OneD_1[i][3]
+        sensitivity = OneD_1[i][6]
     
-    mask_non_neg = np.where(y>0)
-    x = x[mask_non_neg]
-    y = y[mask_non_neg]
-    y_err = y_err[mask_non_neg]
+    sensitivity_lim = np.percentile(sensitivity,[16])
+    sensitivity_mask = np.where(sensitivity>=sensitivity_lim)#[0][0]
+    
+    x = x[sensitivity_mask]#[int(n*2/10):int(n*8/10)]
+    y = y[sensitivity_mask]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+    y_err = y_err[sensitivity_mask]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
 
-    mask_non_neg_2 = np.where(y_err>0)
-    x = x[mask_non_neg_2]
-    y = y[mask_non_neg_2]
-    y_err = y_err[mask_non_neg_2]
-
-    mask_large_err = np.where(y_err/y<1)
-    x = x[mask_large_err]
-    y = y[mask_large_err]
-    y_err = y_err[mask_large_err]
 
     mask_non_neg_photo = np.where(photometric_flux>0)
     wave_list = wave_list[mask_non_neg_photo]
     band_list = band_list[mask_non_neg_photo]
     photometric_flux = photometric_flux[mask_non_neg_photo]
     photometric_flux_err = photometric_flux_err[mask_non_neg_photo]
+    photometric_flux_err_mod = photometric_flux_err_mod[mask_non_neg_photo]
 
-    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band 
-def plot_1D_spectra_Av_corrected(x, y, y_err, z_NIR, wave_list, photometric_flux, photometric_flux_err, model1_wave, model1_flux, intrinsic_Av, region, ID, model_name='M05'):
-    
-    n = len(x)
-    fig1 = plt.figure(figsize=(20,10))
-    frame1 = fig1.add_axes((.1,.3,.8,.6))
-    
-    plt.plot(model1_wave, model1_flux, color='k', linewidth=2, label='model 1')
-    plt.plot(x,y,color='r',lw=3)
-    
-    
-    plt.plot(x[5:-5],z_NIR[5:-5],color='b',lw=2)
-    if np.max(y_err/y)<1:
-        plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.05)
-        
-    ymin = np.min(y)
-    ymax = max(np.max(y), np.max(model1_flux))
-    xmin = np.min(x)
-    xmax = np.max(x)
-    if np.isinf(ymin) or ymin<0 or ymin>0.5:
-        ymin=0
-    if np.isinf(ymax) or ymax>10:
-        ymax=3
-    
-    plt.errorbar(wave_list, photometric_flux, yerr=photometric_flux_err, color='r',fmt='o',label='photometric data',markersize='14')
-    
-    plt.text(wave_list[0], 0.3, 'U', fontsize=12)
-    plt.text(wave_list[1], 0.3, 'B', fontsize=12)
-    plt.text(wave_list[2], 0.3, 'V', fontsize=12)
-    plt.text(wave_list[3], 0.3, 'R', fontsize=12)
-    plt.text(wave_list[4], 0.3, 'i', fontsize=12)
-    plt.text(wave_list[5], 0.3, 'z', fontsize=12)
-    plt.text(wave_list[6], 0.4, 'G_Keck', fontsize=12)
-    plt.text(wave_list[7], 0.4, 'Rs_Keck', fontsize=12)
-    plt.text(wave_list[8], 0.25, 'F435W', fontsize=12)
-    plt.text(wave_list[9], 0.25, 'F606W', fontsize=12)
-    plt.text(wave_list[10], 0.25, 'F775W', fontsize=12)
-    plt.text(wave_list[11], 0.25, 'F850LP', fontsize=12)
-    plt.text(wave_list[12], 0.25, 'F125W', fontsize=12)
-    plt.text(wave_list[13], 0.25, 'F140W', fontsize=12)
-    plt.text(wave_list[14], 0.25, 'F160W', fontsize=12)
-    plt.text(wave_list[15], 0.35, 'J', fontsize=12)
-    plt.text(wave_list[16], 0.35, 'H', fontsize=12)
-    plt.text(wave_list[17], 0.35, 'Ks', fontsize=12)
-    
-    plt.text(1.2e4, 1.2, r'Galactic $A_V$='+"{0:.2f}".format(intrinsic_Av), fontsize=12)
-    
-    if redshift_1<=0.14:
-        i = 9
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at F606W: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.22:
-        i = 3
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at R: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.30:
-        i = 7
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at Keck Rs: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.40:
-        i = 10
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at F775W: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.50:
-        i = 4
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at i: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    else:
-        i = 5
-        temp_norm_wave = wave_list[i]/(1+redshift_1)
-        #index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        #norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at z: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    plt.xlim([3000, 1.2*xmax])
-    plt.ylim([0.25, ymax])#plt.ylim([ymin,ymax])
-    plt.xlabel(r'Wavelength $\rm \AA$', fontsize=20)
-    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$', fontsize=20)
-    titlename='/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSN_413_235_20180911/20181016/goodsn_GV_CMD'+"-G141_"+"{0:05d}".format(ID)+'-'+"{0:02d}".format(region)+'_'+model_name+".png"
-        
-        
-    #==============Residual Plot========================
-    frame2=fig1.add_axes((.1,.1,.8,.2))  
-    index0=0
-    relative_residuals=np.zeros([3,n])
-    for wave in x:
-        if y[index0]>0.25 and y[index0]<1.35:
-            index = find_nearest(model1_wave,wave);#print index
-            relative_residuals[0,index0]=y[index0]/model1_flux[index]
-            index0=index0+1
-    if index0 > 0:
-        plt.plot(x[:index0], relative_residuals[0,:index0], color='k')
-    index0=0
-    relative_photo = np.zeros([1,n])+1
-    for i in range(len(wave_list)):
-        if wave_list[i]>np.min(x) and wave_list[i]<np.max(x):
-            index = find_nearest(x, wave_list[i])
-            relative_photo[0,index0]=y[index]/(photometric_flux[i])
-            plt.errorbar(wave_list[i], y[index]/(photometric_flux[i]), yerr=y_err[index]/(photometric_flux[i]), fmt='o',color='r', markersize=16)
-            index0=index0+1
-    plt.axhline(1.0,linewidth=2,color='k') 
-    plt.xlim([3000,1.2*xmax])
-    plt.ylim([max(0,np.min(relative_photo)-0.2), np.max(relative_residuals)+0.1])# this is the situation for 
-    plt.xlabel(r'wavelength($\AA$)', fontsize=20)
-    plt.ylabel('Relative Residual', fontsize=14) #Flux (spectra over model/photometry)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    
-    if len(x)>100 and np.max(y_err/y)<1 and np.min(y_err/y)>0:
-        plt.savefig(titlename)
-        pass
-    plt.clf()
-def plot_3models(x, y, y_err, z_NIR, wave_list, band_list, photometric_flux, photometric_flux_err, model1_wave, model1_flux, AV_prior_optimized_M05, \
-    model2_wave, model2_flux, AV_prior_optimized_M13, model3_wave, model3_flux, AV_prior_optimized_BC03, region, ID):
-    #------------ Plotting the figure ------------------------------
-    n = len(x)
-    fig1 = plt.figure(figsize=(20,10))
-    frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.tight_layout()
-    #plt.rc('lines', linewidth=3, markersize=2)
-    plt.rc('font', size=24, family='serif', weight=300)
-    plt.rc('mathtext', fontset = 'stix')
-    plt.rc('axes', linewidth=2)
-    plt.rc('xtick.major', width=1.5, size=6)
-    plt.rc('ytick.major', width=1.5, size=6)
-    # Normalize and smooth the models, smoothing BC to delta_lambda =14, smoothing Ma05 to be delta_lambda = 10
-    delta_lambda = x[1]-x[0]
-    #print('delta lambda', delta_lambda)
-
-    norm_factor_BC = int(delta_lambda/3.)
-    #print('norm factor',norm_factor_BC)
-    norm_limit_BC = int(len(model3_wave)*1.0/norm_factor_BC)*norm_factor_BC
-    smooth_model3_wave = model3_wave[:norm_limit_BC].reshape(-1,norm_factor_BC).mean(axis=1)
-    smooth_model3_flux = model3_flux[:norm_limit_BC].reshape(-1,norm_factor_BC).mean(axis=1)
-    #print(len(model3_wave),len(smooth_model3_wave))
-    
-    
-    plt.plot(model1_wave, model1_flux, color='k', linewidth=2, label='Ma05')
-    plt.plot(model2_wave, model2_flux, color='g', linewidth=2, label='Ma13')
-    plt.plot(smooth_model3_wave, smooth_model3_flux, color='orange', linewidth=2, label='BC03')  
-    #plt.plot(model3_wave, model3_flux-0.2)  
-    
-    plt.plot(x, y, color='r',lw=3)
-    
-    plt.plot(x[5:-5],z_NIR[5:-5], color='b', lw=2)
-    if np.max(y_err/y)<1:
-        plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-        
-    ymin = np.min(y)
-    ymax = max(np.max(y), np.max(model1_flux))
-    xmin = np.min(x)
-    xmax = np.max(x)
-    if np.isinf(ymin) or ymin<0 or ymin>0.5:
-        ymin=0
-    if np.isinf(ymax) or ymax>10:
-        ymax=3
-    
-    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr= photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
-    #plt.axvline(10940)
-    if redshift_1<=0.14:
-        i = 9
-        temp_norm_wave = wave_list[i]
-    elif redshift_1<=0.22:
-        i = 3
-        temp_norm_wave = wave_list[i]
-    elif redshift_1<=0.30:
-        i = 7
-        temp_norm_wave = wave_list[i]
-    elif redshift_1<=0.40:
-        i = 10
-        temp_norm_wave = wave_list[i]
-    elif redshift_1<=0.50:
-        i = 4
-        temp_norm_wave = wave_list[i]
-    else:
-        i = 5
-        temp_norm_wave = wave_list[i]
-
-    plt.xlim([2.5e3,1.5e4])
-    plt.ylim([0.1, 1.4])#plt.ylim([ymin,ymax])
-    plt.xlabel(r'Wavelength $\rm \AA$',fontsize=24)
-    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-    plt.tick_params(axis='both', which='major', labelsize=22)
-    plt.legend(loc='upper right',fontsize=24)
-    titlename='/Volumes/My Passport/GV_CMD_fn_table_20180904/GOODSN_413_235_20180911/20190711/goodsn_GV_CMD'+"-G141_"+"{0:05d}".format(ID)+'-'+"{0:02d}".format(region)+"_three_models.pdf"
-    plt.axvline(0.843e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(0.886e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(1.048e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(1.1e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(1.4e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(0.93e4, linestyle='-.', lw=1, color = 'k')
-    plt.axvline(1.17e4, linestyle='-.', lw=1, color = 'k')
-    
-    #==============Residual Plot========================
-    frame2 = fig1.add_axes((.1,.2,.8,.15))  
-
-    model_index = np.argmin([x2_1+5e-3*x2_photo_1, x2_2+5e-3*x2_photo_2, x2_3+5e-3*x2_photo_3])
-    if model_index == 0:
-        model_wave = model1_wave
-        model_flux = model1_flux
-    elif model_index == 1:
-        model_wave = model2_wave
-        model_flux = model2_flux
-    elif model_index == 2:
-        model_wave = smooth_model3_wave
-        model_flux = smooth_model3_flux
-
-    relative_spectra = np.zeros([1,n])
-    index0 = 0
-    for wave in x:
-        if y[index0]>0.25 and y[index0]<1.35:
-            index = find_nearest(model_wave, wave);#print index
-            relative_spectra[0, index0] = y[index0]/model_flux[index]
-            index0 = index0+1
-    if index0 > 0:
-        plt.plot(x[:index0], relative_spectra[0,:index0], color='b', linewidth=2)
-
-
-    index0 = 0
-    relative_photo = np.zeros([1,(len(wave_list))])
-    for i in range(len(wave_list)):
-        #if wave_list[i]>np.min(x) and wave_list[i]<np.max(x):
-        try:
-            index = find_nearest(model_wave, wave_list[i])
-            relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
-        except:
-            pass
-        plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
-        index0 = index0+1
-    plt.xlim([2.5e3,1.5e4])
-    #plt.xlim([3000,15000]) 
-    #plt.xlim([np.min(wave_list), np.max(wave_list)])
-    plt.ylim([0.5, 1.5])#max(np.max(relative_residual_1)+0.1,2.0)])# this is the situation for 
-    #plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    #plt.ylabel('Relative Residual', fontsize=14) #Flux (spectra over model/photometry)
-    plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    
-    #==============Residual Plot of the models========================
-    frame3 = fig1.add_axes((.1,.05,.8,.12)) 
-    index0 = 0
-    relative_residual_1 = np.zeros([2,len(model1_wave)])
-    for wave in model1_wave:
-        try:
-            index = find_nearest(model_wave, wave)
-            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
-            relative_residual_1[0, index0] = wave
-            relative_residual_1[1, index0] = model1_flux[index0]/model_flux_interp#/model_flux[index]
-            index0 = index0 + 1
-        except:
-            pass
-    if index0 > 0:
-        plt.plot(relative_residual_1[0,:], relative_residual_1[1,:], color = 'k')
-    #print('Relative residuals:', relative_residual_1[1,:])
-    
-    index0 = 0
-    relative_residual_2 = np.zeros([2,len(model2_wave)])
-    for wave in model2_wave:
-        try:
-            index = find_nearest(model_wave, wave)
-            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
-            #print(model_flux_interp)
-            relative_residual_2[0, index0] = wave
-            relative_residual_2[1, index0] = model2_flux[index0]/model_flux_interp#/model_flux[index]
-            index0 = index0 + 1
-        except:
-            pass
-    if index0 > 0:
-        plt.plot(relative_residual_2[0,:], relative_residual_2[1,:], color = 'g')
-
-    index0 = 0
-    relative_residual_3 = np.zeros([2,len(smooth_model3_wave)])
-    for wave in smooth_model3_wave:
-        try:
-            index = find_nearest(model_wave, wave)
-            model_flux_interp = np.interp(wave, model_wave[index:index+1], model_flux[index:index+1])
-            relative_residual_3[0, index0] = wave
-            relative_residual_3[1, index0] = smooth_model3_flux[index0]/model_flux_interp#/model_flux[index]
-            index0 = index0 + 1
-        except:
-            pass
-    if index0 > 0:
-        plt.plot(relative_residual_3[0,:], relative_residual_3[1,:], color = 'orange')
-
-    plt.xlim([2.5e3,1.5e4])
-    #plt.xlim([3000,15000]) 
-    #plt.xlim([np.min(wave_list), np.max(wave_list)])
-    plt.ylim([0.5, 2.0])#max(np.max(relative_residual_1)+0.1,2.0)])# this is the situation for 
-    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    plt.ylabel('Relative Residual', fontsize=14) #Flux (spectra over model/photometry)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    if len(x)>100 and np.max(y_err/y)<1 and np.min(y_err/y)>0:
-        plt.savefig(titlename)
-        plt.clf()
-        print(titlename)
-        pass
-    else:
-        print('length of data points:',len(x))
-        print('Max of error:', np.max(y_err/y))
-        print('min of err:',np.min(y_err/y))
-    plt.clf()
+    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band, photometric_flux_err_mod/norm_band 
 def model_identification(chi2_array,rtol=0.1):
     index = find_nearest(chi2_array,1)    
     model = np.mod(index,3)+1
@@ -1897,8 +1571,9 @@ def lg_minimize_age_AV_vector_weighted_return_BC03_mod(X):
 nsteps=1200
 current_dir = '/Volumes/My Passport/TPAGB/'
 outcome_dir = 'outcome/'
-plot_dir = 'plot/20200302_goodsn/'
-for i in range(28,len(df)): # 325 in total
+date='20200303'
+plot_dir = 'plot/'+str(date)+'_goodsn/'
+for i in range(len(df)): # 325 in total
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -2027,14 +1702,15 @@ for i in range(28,len(df)): # 325 in total
     band_list = np.array([U_band, B_band, V_band, R_band, I_band, Z_band, G_Keck_band, Rs_Keck_band, F435W_band, F606W_band, F775W_band, F850LP_band, F125W_band, F140W_band, F160W_band, J_band, H_band, Ks_band])
     photometric_flux = np.array([U, B, V, R, I, Z, G_Keck, Rs_Keck, F435W, F606W, F775W, F850LP, F125W, F140W, F160W, J, H, Ks])
     photometric_flux_err = np.array([U_err, B_err, V_err, R_err, I_err, Z_err, G_Keck_err, Rs_Keck_err, F435W_err, F606W_err, F775W_err, F850LP_err, F125W_err, F140W_err, F160W_err,J_err, H_err, Ks_err])
-    photometric_flux_err = np.array([U_err+0.1*U, B_err+0.1*B, V_err+0.1*V, R_err+0.1*R, I_err+0.1*I, Z_err+0.1*Z, G_Keck_err+0.1*G_Keck, Rs_Keck_err+0.1*Rs_Keck,\
+    photometric_flux_err_mod = np.array([U_err+0.1*U, B_err+0.1*B, V_err+0.1*V, R_err+0.1*R, I_err+0.1*I, Z_err+0.1*Z, G_Keck_err+0.1*G_Keck, Rs_Keck_err+0.1*Rs_Keck,\
                                     F435W_err+0.03*F435W, F606W_err+0.03*F606W, F775W_err+0.03*F775W, F850LP_err+0.03*F850LP, F125W_err+0.03*F125W, F140W_err+0.03*F140W, F160W_err+0.03*F160W,\
                                     J_err+0.1*J, H_err+0.1*H, Ks_err+0.1*Ks])
 
 #------------------------------------------------- Reduce the spectra ----------------------------------------------------------
     # print(photometric_flux)
     print('-------------------------------------Initial fit ---------------------------------------------------------------------------------------')
-    [x, y, y_err, wave_list, band_list, photometric_flux, photometric_flux_err] = derive_1D_spectra_Av_corrected(OneD_1, redshift_1, row, wave_list, band_list, photometric_flux, photometric_flux_err, A_v)
+    [x, y, y_err, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod] = \
+    derive_1D_spectra_Av_corrected(OneD_1, redshift_1, row, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod, A_v)
     if redshift< 0.49:
         try:
             chi_square_list.loc[row,'grism_index'] = Lick_index_ratio(x,y)
@@ -2087,7 +1763,7 @@ for i in range(28,len(df)): # 325 in total
     frame1 = fig1.add_axes((.1,.35,.8,.6))
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
     model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
     plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
@@ -2125,7 +1801,7 @@ for i in range(28,len(df)): # 325 in total
             # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
         except:
             pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
         # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
         index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
@@ -2213,7 +1889,7 @@ for i in range(28,len(df)): # 325 in total
             frame1 = fig1.add_axes((.1,.35,.8,.6))
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
             model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
             plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
@@ -2251,7 +1927,7 @@ for i in range(28,len(df)): # 325 in total
                     # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                 except:
                     pass
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                 # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                 index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
@@ -2333,7 +2009,7 @@ for i in range(28,len(df)): # 325 in total
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
                 model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
                 plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
@@ -2371,7 +2047,7 @@ for i in range(28,len(df)): # 325 in total
                         # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                     except:
                         pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                     # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                     index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
@@ -2420,7 +2096,7 @@ for i in range(28,len(df)): # 325 in total
     frame1 = fig1.add_axes((.1,.35,.8,.6))
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
     model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
     plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
@@ -2458,7 +2134,7 @@ for i in range(28,len(df)): # 325 in total
             # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
         except:
             pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
         # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
         index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
@@ -2551,7 +2227,7 @@ for i in range(28,len(df)): # 325 in total
             frame1 = fig1.add_axes((.1,.35,.8,.6))
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
             model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
             plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
@@ -2589,7 +2265,7 @@ for i in range(28,len(df)): # 325 in total
                 except:
                     pass
                 # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                 index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2679,7 +2355,7 @@ for i in range(28,len(df)): # 325 in total
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1]
                 model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[2]
                 plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
@@ -2717,7 +2393,7 @@ for i in range(28,len(df)): # 325 in total
                         # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                     except:
                         pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                     # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                     index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
@@ -2767,7 +2443,7 @@ for i in range(28,len(df)): # 325 in total
     frame1 = fig1.add_axes((.1,.35,.8,.6))
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
     plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
     model_wave = BC03_wave_list_num
@@ -2806,7 +2482,7 @@ for i in range(28,len(df)): # 325 in total
             # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
         except:
             pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
         # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
         index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
@@ -2893,7 +2569,7 @@ for i in range(28,len(df)): # 325 in total
             frame1 = fig1.add_axes((.1,.35,.8,.6))
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
             plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
             model_wave = BC03_wave_list_num
@@ -2932,7 +2608,7 @@ for i in range(28,len(df)): # 325 in total
                     # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                 except:
                     pass
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                 # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                 index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
@@ -3019,7 +2695,7 @@ for i in range(28,len(df)): # 325 in total
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err, color='r', fmt='o', label='photometric data', markersize='14')
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
                 plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
                 model_wave = BC03_wave_list_num
@@ -3058,7 +2734,7 @@ for i in range(28,len(df)): # 325 in total
                         # relative_photo[0, index0] = model_flux[index]/(photometric_flux[i])
                     except:
                         pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
                     # plt.errorbar(wave_list[i], (photometric_flux[i])/model_flux[index], xerr=band_list[i], yerr=photometric_flux_err[i]/model_flux[index], fmt='o', color='r', markersize=16)
                     index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
@@ -3087,7 +2763,7 @@ for i in range(28,len(df)): # 325 in total
         pass
     chi2_array=chi_square_list.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
     AV_array=chi_square_list.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
-    index = find_nearest(chi2_array,1)
+    index = find_nearest(chi2_array,0)
     AV_opt = float(AV_array[index])
     spectra_extinction = calzetti00(x, AV_opt, 4.05)
     spectra_flux_correction = 10 ** (-0.4 * spectra_extinction)
@@ -3098,6 +2774,6 @@ for i in range(28,len(df)): # 325 in total
         except:
             pass
 
-chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodsn-three_models_optimized_20200302_scale_photo.csv')
+chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodsn-three_models_optimized_'+str(date)+'_scale_photo.csv')
 # chi_square_list_final=model_from_chi2(chi_square_list)
 # chi_square_list_final.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_goodsn-three_models_optimized_20200224_age_AV_final.csv')
