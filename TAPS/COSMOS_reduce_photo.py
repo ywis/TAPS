@@ -13,7 +13,10 @@ import time
 from random import randrange, uniform
 import emcee
 import corner
+import math
 from multiprocessing import Pool,cpu_count
+import warnings
+warnings.filterwarnings('ignore')
 
 ncpu = cpu_count()
 print("{0} CPUs".format(ncpu))
@@ -129,8 +132,11 @@ tok2 = time.clock()
 print('Time used for the read the models: '+str(tok2-tik2))
 
 def find_nearest(array,value):
-    idx = np.argmin(np.abs(array-value))
-    return idx
+    idx = np.searchsorted(array, value, side="left")
+    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1#array[idx-1]
+    else:
+        return idx#array[idx]
 def read_spectra(row):
     """
     region: default 1 means the first region mentioned in the area, otherwise, the second region/third region
@@ -375,6 +381,63 @@ chi_square_list_final = pd.DataFrame(index=df.index,columns=columns)
 weight1 = 1.0#0.25#0.0#1/1.864#/0.5
 weight2 = 1.0#weight1*5e-3#1.0#1/1228.53#/0.5
 
+## Prepare the M05 models and store in the right place
+M05_model = []
+M05_model_list=[]
+for i in range(30):
+    age_index = i
+    age_prior = df_Ma.Age.unique()[age_index]
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+    fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+    M05_model = np.loadtxt(fn1)
+    M05_model_list.append(M05_model)
+fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
+fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
+M05_model = np.loadtxt(fn1)
+M05_model_list.append(M05_model)
+M05_model = np.loadtxt(fn2)
+M05_model_list.append(M05_model)
+for i in range(32,46):
+    age_index = i
+    age_prior = df_Ma.Age.unique()[age_index]
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+    fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+    M05_model = np.loadtxt(fn2)
+    M05_model_list.append(M05_model)
+
+## Prepare the M13 models and store in the right place
+M13_model = []
+M13_model_list=[]
+fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_1e-06_Av_00_z002.csv'
+fn2 = '/Volumes/My Passport/SSP_models/new/M13_age_0_0001_Av_00_z002.csv'
+M13_model = np.genfromtxt(fn1)
+M13_model_list.append(M13_model)
+M13_model = np.genfromtxt(fn2)
+M13_model_list.append(M13_model)
+for i in range(2,51):
+    age_index = i
+    age_prior = df_M13.Age.unique()[age_index]
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+    fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
+    M13_model = np.loadtxt(fn1)
+    M13_model_list.append(M13_model)
+fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_1_Av_00_z002.csv'
+fn2 = '/Volumes/My Passport/SSP_models/new/M13_age_1_5_Av_00_z002.csv'
+M13_model = np.loadtxt(fn1)
+M13_model_list.append(M13_model)
+M13_model = np.loadtxt(fn2)
+M13_model_list.append(M13_model)
+for i in range(53,67):
+    age_index = i
+    age_prior = df_M13.Age.unique()[age_index]
+    galaxy_age_string = str(age_prior)
+    split_galaxy_age_string = str(galaxy_age_string).split('.')
+    fn2 = '/Volumes/My Passport/SSP_models/new/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
+    M13_model = np.loadtxt(fn2)
+    M13_model_list.append(M13_model)
 
 def binning_spec_keep_shape_x(wave,flux,flux_err,bin_size):
     wave_binned = wave
@@ -398,82 +461,52 @@ def minimize_age_AV_vector_weighted(X):
     # print(age_prior)
     
     if age_prior < 1:
-        fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
-        model1 = np.genfromtxt(fn1)
+        if galaxy_age < age_prior:
+            model1 = (M05_model_list[age_index]*(galaxy_age-df_Ma.Age.unique()[age_index-1]) \
+                + M05_model_list[age_index-1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index]-df_Ma.Age.unique()[age_index-1])
+        elif galaxy_age > age_prior:
+            model1 = (M05_model_list[age_index]*(df_Ma.Age.unique()[age_index+1]-galaxy_age) \
+                + M05_model_list[age_index+1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index+1]-df_Ma.Age.unique()[age_index])
+        elif galaxy_age == age_prior:
+            model1 = M05_model_list[age_index]
     elif age_prior == 1.5:
         if galaxy_age >=1.25 and galaxy_age <1.5:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
     elif len(split_galaxy_age_string[1])==1:
         if galaxy_age >= 1.0 and galaxy_age < 1.25:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >=1.75 and galaxy_age < 2.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
         elif galaxy_age >= 2.0 and galaxy_age < 3.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[32] + 2.*(galaxy_age-1.5)*M05_model_list[33]
         elif galaxy_age >= 3.0 and galaxy_age < 4.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[33] + 2.*(galaxy_age-1.5)*M05_model_list[34]
         elif galaxy_age >= 4.0 and galaxy_age < 5.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[34] + 2.*(galaxy_age-1.5)*M05_model_list[35]
         elif galaxy_age >= 5.0 and galaxy_age < 6.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[35] + 2.*(galaxy_age-1.5)*M05_model_list[36]
         elif galaxy_age >= 6.0 and galaxy_age < 7.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[36] + 2.*(galaxy_age-1.5)*M05_model_list[37]
         elif galaxy_age >= 7.0 and galaxy_age < 8.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[37] + 2.*(galaxy_age-1.5)*M05_model_list[38]
         elif galaxy_age >= 8.0 and galaxy_age < 9.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[38] + 2.*(galaxy_age-1.5)*M05_model_list[39]
         elif galaxy_age >= 9.0 and galaxy_age < 10.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[39] + 2.*(galaxy_age-1.5)*M05_model_list[40]
         elif galaxy_age >= 10.0 and galaxy_age < 11.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[40] + 2.*(galaxy_age-1.5)*M05_model_list[41]
         elif galaxy_age >= 11.0 and galaxy_age < 12.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[41] + 2.*(galaxy_age-1.5)*M05_model_list[42]
         elif galaxy_age >= 12.0 and galaxy_age < 13.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[42] + 2.*(galaxy_age-1.5)*M05_model_list[43]
         elif galaxy_age >= 13.0 and galaxy_age < 14.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[43] + 2.*(galaxy_age-1.5)*M05_model_list[44]
         elif galaxy_age >= 14.0 and galaxy_age < 15.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_15_Av_00_z002.csv'
-            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[44] + 2.*(galaxy_age-1.5)*M05_model_list[45]
         else:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
-            model1 = np.genfromtxt(fn1)
-    # print(fn1,len(split_galaxy_age_string[1]))
+            model1 = M05_model_list[age_index]
 
     spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
@@ -508,81 +541,52 @@ def lg_minimize_age_AV_vector_weighted(X):
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
     if age_prior < 1:
-        fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
-        model1 = np.genfromtxt(fn1)
+        if galaxy_age < age_prior:
+            model1 = (M05_model_list[age_index]*(galaxy_age-df_Ma.Age.unique()[age_index-1]) \
+                + M05_model_list[age_index-1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index]-df_Ma.Age.unique()[age_index-1])
+        elif galaxy_age > age_prior:
+            model1 = (M05_model_list[age_index]*(df_Ma.Age.unique()[age_index+1]-galaxy_age) \
+                + M05_model_list[age_index+1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index+1]-df_Ma.Age.unique()[age_index])
+        elif galaxy_age == age_prior:
+            model1 = M05_model_list[age_index]
     elif age_prior == 1.5:
         if galaxy_age >=1.25 and galaxy_age <1.5:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
     elif len(split_galaxy_age_string[1])==1:
         if galaxy_age >= 1.0 and galaxy_age < 1.25:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >=1.75 and galaxy_age < 2.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
         elif galaxy_age >= 2.0 and galaxy_age < 3.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[32] + 2.*(galaxy_age-1.5)*M05_model_list[33]
         elif galaxy_age >= 3.0 and galaxy_age < 4.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[33] + 2.*(galaxy_age-1.5)*M05_model_list[34]
         elif galaxy_age >= 4.0 and galaxy_age < 5.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[34] + 2.*(galaxy_age-1.5)*M05_model_list[35]
         elif galaxy_age >= 5.0 and galaxy_age < 6.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[35] + 2.*(galaxy_age-1.5)*M05_model_list[36]
         elif galaxy_age >= 6.0 and galaxy_age < 7.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[36] + 2.*(galaxy_age-1.5)*M05_model_list[37]
         elif galaxy_age >= 7.0 and galaxy_age < 8.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[37] + 2.*(galaxy_age-1.5)*M05_model_list[38]
         elif galaxy_age >= 8.0 and galaxy_age < 9.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[38] + 2.*(galaxy_age-1.5)*M05_model_list[39]
         elif galaxy_age >= 9.0 and galaxy_age < 10.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[39] + 2.*(galaxy_age-1.5)*M05_model_list[40]
         elif galaxy_age >= 10.0 and galaxy_age < 11.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[40] + 2.*(galaxy_age-1.5)*M05_model_list[41]
         elif galaxy_age >= 11.0 and galaxy_age < 12.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[41] + 2.*(galaxy_age-1.5)*M05_model_list[42]
         elif galaxy_age >= 12.0 and galaxy_age < 13.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[42] + 2.*(galaxy_age-1.5)*M05_model_list[43]
         elif galaxy_age >= 13.0 and galaxy_age < 14.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[43] + 2.*(galaxy_age-1.5)*M05_model_list[44]
         elif galaxy_age >= 14.0 and galaxy_age < 15.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_15_Av_00_z002.csv'
-            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[44] + 2.*(galaxy_age-1.5)*M05_model_list[45]
         else:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
-            model1 = np.genfromtxt(fn1)
+            model1 = M05_model_list[age_index]
 
     spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
@@ -628,99 +632,53 @@ def minimize_age_AV_vector_weighted_return_flux(X):
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
     if age_prior < 1:
-        fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
-        model1 = np.genfromtxt(fn1)
+        if galaxy_age < age_prior:
+            model1 = (M05_model_list[age_index]*(galaxy_age-df_Ma.Age.unique()[age_index-1]) \
+                + M05_model_list[age_index-1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index]-df_Ma.Age.unique()[age_index-1])
+        elif galaxy_age > age_prior:
+            model1 = (M05_model_list[age_index]*(df_Ma.Age.unique()[age_index+1]-galaxy_age) \
+                + M05_model_list[age_index+1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index+1]-df_Ma.Age.unique()[age_index])
+        elif galaxy_age == age_prior:
+            model1 = M05_model_list[age_index]
     elif age_prior == 1.5:
         if galaxy_age >=1.25 and galaxy_age <1.5:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
     elif len(split_galaxy_age_string[1])==1:
-        if galaxy_age >= 1.0 and galaxy_age <= 1.25:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+        if galaxy_age >= 1.0 and galaxy_age < 1.25:
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >=1.75 and galaxy_age < 2.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
         elif galaxy_age >= 2.0 and galaxy_age < 3.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[32] + 2.*(galaxy_age-1.5)*M05_model_list[33]
         elif galaxy_age >= 3.0 and galaxy_age < 4.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[33] + 2.*(galaxy_age-1.5)*M05_model_list[34]
         elif galaxy_age >= 4.0 and galaxy_age < 5.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[34] + 2.*(galaxy_age-1.5)*M05_model_list[35]
         elif galaxy_age >= 5.0 and galaxy_age < 6.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[35] + 2.*(galaxy_age-1.5)*M05_model_list[36]
         elif galaxy_age >= 6.0 and galaxy_age < 7.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[36] + 2.*(galaxy_age-1.5)*M05_model_list[37]
         elif galaxy_age >= 7.0 and galaxy_age < 8.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[37] + 2.*(galaxy_age-1.5)*M05_model_list[38]
         elif galaxy_age >= 8.0 and galaxy_age < 9.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[38] + 2.*(galaxy_age-1.5)*M05_model_list[39]
         elif galaxy_age >= 9.0 and galaxy_age < 10.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[39] + 2.*(galaxy_age-1.5)*M05_model_list[40]
         elif galaxy_age >= 10.0 and galaxy_age < 11.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[40] + 2.*(galaxy_age-1.5)*M05_model_list[41]
         elif galaxy_age >= 11.0 and galaxy_age < 12.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[41] + 2.*(galaxy_age-1.5)*M05_model_list[42]
         elif galaxy_age >= 12.0 and galaxy_age < 13.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[42] + 2.*(galaxy_age-1.5)*M05_model_list[43]
         elif galaxy_age >= 13.0 and galaxy_age < 14.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[43] + 2.*(galaxy_age-1.5)*M05_model_list[44]
         elif galaxy_age >= 14.0 and galaxy_age < 15.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_15_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[44] + 2.*(galaxy_age-1.5)*M05_model_list[45]
         else:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
-            model1 = np.genfromtxt(fn1)
-
+            model1 = M05_model_list[age_index]
+    
     spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M05_flux_center = model1[1,:]*spectra_flux_correction
@@ -761,98 +719,52 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
     if age_prior < 1:
-        fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+'0_'+split_galaxy_age_string[1]+'_Av_00_z002.csv'
-        model1 = np.genfromtxt(fn1)
+        if galaxy_age < age_prior:
+            model1 = (M05_model_list[age_index]*(galaxy_age-df_Ma.Age.unique()[age_index-1]) \
+                + M05_model_list[age_index-1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index]-df_Ma.Age.unique()[age_index-1])
+        elif galaxy_age > age_prior:
+            model1 = (M05_model_list[age_index]*(df_Ma.Age.unique()[age_index+1]-galaxy_age) \
+                + M05_model_list[age_index+1]*(age_prior-galaxy_age))/(df_Ma.Age.unique()[age_index+1]-df_Ma.Age.unique()[age_index])
+        elif galaxy_age == age_prior:
+            model1 = M05_model_list[age_index]
     elif age_prior == 1.5:
         if galaxy_age >=1.25 and galaxy_age <1.5:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >= 1.5 and galaxy_age <= 1.75:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
     elif len(split_galaxy_age_string[1])==1:
         if galaxy_age >= 1.0 and galaxy_age < 1.25:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(1.5-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.0)*np.genfromtxt(fn2)
+            model1 = 2.*(1.5-galaxy_age)*M05_model_list[30] + 2.*(galaxy_age-1.0)*M05_model_list[31]
         elif galaxy_age >=1.75 and galaxy_age < 2.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_1_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = 2.*(2.0-galaxy_age)*np.genfromtxt(fn1) + 2.*(galaxy_age-1.5)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[31] + 2.*(galaxy_age-1.5)*M05_model_list[32]
         elif galaxy_age >= 2.0 and galaxy_age < 3.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_2_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (3.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-2.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[32] + 2.*(galaxy_age-1.5)*M05_model_list[33]
         elif galaxy_age >= 3.0 and galaxy_age < 4.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_3_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (4.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-3.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[33] + 2.*(galaxy_age-1.5)*M05_model_list[34]
         elif galaxy_age >= 4.0 and galaxy_age < 5.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_4_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (5.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-4.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[34] + 2.*(galaxy_age-1.5)*M05_model_list[35]
         elif galaxy_age >= 5.0 and galaxy_age < 6.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_5_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (6.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-5.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[35] + 2.*(galaxy_age-1.5)*M05_model_list[36]
         elif galaxy_age >= 6.0 and galaxy_age < 7.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_6_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (7.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-6.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[36] + 2.*(galaxy_age-1.5)*M05_model_list[37]
         elif galaxy_age >= 7.0 and galaxy_age < 8.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_7_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (8.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-7.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[37] + 2.*(galaxy_age-1.5)*M05_model_list[38]
         elif galaxy_age >= 8.0 and galaxy_age < 9.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_8_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (9.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-8.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[38] + 2.*(galaxy_age-1.5)*M05_model_list[39]
         elif galaxy_age >= 9.0 and galaxy_age < 10.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_9_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (10.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-9.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[39] + 2.*(galaxy_age-1.5)*M05_model_list[40]
         elif galaxy_age >= 10.0 and galaxy_age < 11.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_10_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (11.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-10.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[40] + 2.*(galaxy_age-1.5)*M05_model_list[41]
         elif galaxy_age >= 11.0 and galaxy_age < 12.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_11_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (12.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-11.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[41] + 2.*(galaxy_age-1.5)*M05_model_list[42]
         elif galaxy_age >= 12.0 and galaxy_age < 13.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_12_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (13.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-12.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[42] + 2.*(galaxy_age-1.5)*M05_model_list[43]
         elif galaxy_age >= 13.0 and galaxy_age < 14.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_13_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (14.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-13.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[43] + 2.*(galaxy_age-1.5)*M05_model_list[44]
         elif galaxy_age >= 14.0 and galaxy_age < 15.0:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_14_Av_00_z002.csv'
-            fn2 = '/Volumes/My Passport/SSP_models/new/M05_age_15_Av_00_z002.csv'
-            #print(fn1, fn2)
-            model1 = (15.0-galaxy_age)*np.genfromtxt(fn1) + (galaxy_age-14.0)*np.genfromtxt(fn2)
+            model1 = 2.*(2.0-galaxy_age)*M05_model_list[44] + 2.*(galaxy_age-1.5)*M05_model_list[45]
         else:
-            fn1 = '/Volumes/My Passport/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
-            model1 = np.genfromtxt(fn1)
+            model1 = M05_model_list[age_index]
 
     spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
@@ -973,6 +885,7 @@ def minimize_age_AV_vector_weighted_M13(X):
             fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
             model2 = np.genfromtxt(fn1)
 
+
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
@@ -983,7 +896,7 @@ def minimize_age_AV_vector_weighted_M13(X):
     binning_index = find_nearest(model2[0,:],np.median(x));
     if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new,binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
         x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
         # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
@@ -1008,6 +921,7 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
     galaxy_age_string = str(age_prior)
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
+    # print(galaxy_age)
     if age_prior < 1e-4:
         fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+'0_0001_Av_00_z002.csv'
         model2 = np.genfromtxt(fn1)
@@ -1088,6 +1002,7 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
             fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
             model2 = np.genfromtxt(fn1)
 
+
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
@@ -1096,9 +1011,12 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
     
     binning_index = find_nearest(model2[0,:],np.median(x))
+    # print(model2[:,-10:])
+    # print(len(model2),galaxy_age, age_prior, age_index, len(x), len(model2), np.median(x), np.min(model2[0,:]),np.max(model2[0,:]), binning_index)
     if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        # print('bin size', (model2[0,binning_index]-model2[0,binning_index-1]), binning_size)
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new, binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
         x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     else:
@@ -1108,10 +1026,15 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     tok = time.clock()
     # print('time for lg_minimize',tok-tik)
-    if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
-        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
-    else:
-        return -np.inf
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
+            lnprobval = np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+        else:
+            lnprobval = -np.inf
+    except ValueError: # NaN value case
+       lnprobval = -np.inf
+       print('valueError',lnprobval)
+    return lnprobval
 def minimize_age_AV_vector_weighted_M13_return_flux(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1202,6 +1125,8 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         else:
             fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
             model2 = np.genfromtxt(fn1)
+
+    
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
@@ -1212,7 +1137,7 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
     binning_index = find_nearest(model2[0,:],np.median(x))
     if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new, binning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
         x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
         smooth_Flux_M13_1Gyr_new = model_flux_binned
@@ -1313,6 +1238,7 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
             fn1 = '/Volumes/My Passport/SSP_models/new/M13_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
             model2 = np.genfromtxt(fn1)
 
+
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
@@ -1323,7 +1249,7 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
     binning_index = find_nearest(model2[0,:],np.median(x))
     if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
         binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new)
+        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new,binnning_size)
         x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
         x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
         # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
@@ -1633,12 +1559,22 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 
                      
         elif n==1:
-            transmission_index = find_nearest(filter_curve[:,0],wave[j])
-            transmission = np.interp(wave[j], \
+            transmission_index = find_nearest(filter_curve[:,0],wave[0])
+            print('tranmission index',transmission_index,wave[0],filter_curve[transmission_index,0])
+            if transmission_index ==0:
+                        transmission = np.interp(wave[0], \
+                                             filter_curve[0:2,0],\
+                                             filter_curve[0:2,1])
+            elif transmission_index == len(filter_curve[:,0]):
+                transmission = np.interp(wave[0], \
+                                             filter_curve[-2:,0],\
+                                             filter_curve[-2:,1])
+            else:
+                transmission = np.interp(wave[0], \
                                      filter_curve[transmission_index-1:transmission_index+1,0],\
                                      filter_curve[transmission_index-1:transmission_index+1,1])
-            transmission = np.interp(wave, filter_curve[j:j+2,0], filter_curve[j:j+2,1])
-            flambda_AB_K = flux[0]*transmission[0]
+            print('single wave',i,transmission)
+            flambda_AB_K = flux[0]*transmission#[0]
             sum_flambda_AB_K += flambda_AB_K*wave_inter
             sum_transmission += np.sum(transmission)*wave_inter#/len(transmission)#np.trapz(transmission, x=wave)
             length = length+1
@@ -1649,6 +1585,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
             photometry_list[i-1] = sum_flambda_AB_K/sum_transmission
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
     tok = time.clock()
+    # print('length of the chisquare_photo_list',len(chisquare_photo_list))
     # print('running time for chisquare_photo:',tok-tik)
     return np.sum(chisquare_photo_list)/len(chisquare_photo_list)
 
@@ -1658,7 +1595,6 @@ current_dir = '/Volumes/My Passport/TPAGB/'
 outcome_dir = 'outcome/'
 date='20200321_photo'
 plot_dir = 'plot/'+date+'_cosmos/'
-
 
 filter_fn_list = []
 filter_curve_list=[]
@@ -1675,7 +1611,7 @@ for i in range(1,41):
     filter_curve_list.append(filter_curve)
 
 
-for i in [1,63,0,76,31,41,29,24,73,12,14,10,60,47,56]:#range(21,len(df)):
+for i in [12]:#[73,12,14,10,60,47,56]:#range(21,len(df)):
     # 35: 11-27160
     # 9: 1-22611
     # 8: 1-22285
@@ -2396,7 +2332,7 @@ for i in [1,63,0,76,31,41,29,24,73,12,14,10,60,47,56]:#range(21,len(df)):
     bnds = ((0.0, 13.0), (0.0, 4.0))
     X = np.array([galaxy_age,intrinsic_Av])
     sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='TNC')#, options = {'disp': True})
-    # print('Optimized M13 weighted reduced chisqure result:', sol_M13)
+    print('Optimized M13 weighted reduced chisqure result:', sol_M13)
     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
     X = sol_M13.x
     x2_optimized = minimize_age_AV_vector_weighted_M13(X)
