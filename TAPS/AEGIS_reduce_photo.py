@@ -776,6 +776,8 @@ def lg_minimize_age_AV_vector_weighted(X):
         return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
     else:
         return -np.inf
+
+        
 def minimize_age_AV_vector_weighted_return_flux(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1035,7 +1037,16 @@ def minimize_age_AV_vector_weighted_M13(X):
         # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     # print(x2_photo)
-    return 0.5*weight1*x2+0.5*weight2*x2_photo
+    # return 0.5*weight1*x2+0.5*weight2*x2_photo
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: # NaN value case
+       x2_tot = np.inf
+       print('ValueError', x2_tot)
+    return x2_tot
 def lg_minimize_age_AV_vector_weighted_M13(X):
     tik = time.clock()
     galaxy_age= X[0]
@@ -1118,10 +1129,15 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     tok = time.clock()
     # print('time for lg_minimize',tok-tik)
-    if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*1e-3*x2_photo):
-        return np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
-    else:
-        return -np.inf
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            lnprobval = np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+        else:
+            lnprobval = -np.inf
+    except ValueError: # NaN value case
+       lnprobval = -np.inf
+       print('valueError',lnprobval)
+    return lnprobval
 def minimize_age_AV_vector_weighted_M13_return_flux(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1202,7 +1218,15 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    return 0.5*weight1*x2+0.5*weight2*x2_photo, model2[0,:], smooth_Flux_M13_1Gyr_new
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: # NaN value case
+       x2_tot = np.inf
+       print('valueError', x2_tot)
+    return x2_tot, model2[0,:], smooth_Flux_M13_1Gyr_new
 def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1285,7 +1309,16 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
         # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
-    
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            pass
+        else:
+            x2 = np.inf
+            x2_photo = np.inf
+    except ValueError: # NaN value case
+       x2 = np.inf
+       x2_photo = np.inf
+       print('ValueError', x2)
     return x2, x2_photo
 
 def minimize_age_AV_vector_weighted_BC03(X):
