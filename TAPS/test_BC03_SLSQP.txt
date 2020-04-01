@@ -1,0 +1,1019 @@
+8 CPUs
+Time to read the catalogues:1.4336540000000002
+Time used for the read the models: 0.8577240000000002
+f1_u_megaprime_sagem.res.txt
+f2_g_megaprime_sagem.res.txt
+f3_r_megaprime_sagem.res.txt
+f4_i_megaprime_sagem.res.txt
+f5_z_megaprime_sagem.res.txt
+f6_hst_acsF606W.res.txt
+f7_hst_acs_F814W.res.txt
+f8_hst_wfc3F125W.res.txt
+f9_hst_wfc3F140W.res.txt
+f10_hst_wfc3F160W.res.txt
+f11_newfirm_J1.res
+f12_newfirm_J2.res
+f13_newfirm_J3.res
+f14_newfirm_H1.res
+f15_newfirm_H2.res
+f16_newfirm_Ks.res
+f17_wircam_J.res
+f18_wircam_H.res.txt
+f19_wircam_Ks.res.txt
+f20_Y_uv.res.txt
+f21_J_uv.res.txt
+f22_H_uv.res.txt
+f23_K_uv.res.txt
+f24_B_subaru.res.txt
+f25_V_subaru.res.txt
+f26_r_subaru.res.txt
+f27_i_subaru.res.txt
+f28_z_subaru.res.txt
+f29_IB427.SuprimeCam.pb.txt
+f30_IB464.SuprimeCam.pb.txt
+f31_IB484.SuprimeCam.pb.txt
+f32_IB505.SuprimeCam.pb.txt
+f33_IB527.SuprimeCam.pb.txt
+f34_IB574.SuprimeCam.pb.txt
+f35_IB624.SuprimeCam.pb.txt
+f36_IB679.SuprimeCam.pb.txt
+f37_IB709.SuprimeCam.pb.txt
+f38_IB738.SuprimeCam.pb.txt
+f39_IB767.SuprimeCam.pb.txt
+f40_IB827.SuprimeCam.pb.txt
+Time reading the filter curves and without generate filter functions: 0.5588889122009277
+12 16320 0.2204
+intrinsic Av:0.5
+Galaxy age: 2.511886431509582
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10258.17 17695.83
+masking region: 11396.58 16418.01 48 258
+before masking 312
+after masking 210
+Number of photometric points for rescaling: 4
+0.9786645740702298
+photo flux:  [0.25838741 0.62739391 1.00898609 1.02986459 0.9819508  0.96218136
+ 1.03717443 0.7827759  0.69276487 0.6227007  0.87790511 0.79697634
+ 0.7755022  0.63044739 0.53940879 0.37056586 0.81500931 0.64210619
+ 0.40854457 0.89137798 0.78541322 0.56442524 0.36436499 0.43151195
+ 0.89827797 0.94007899 0.96150019 0.95345378 0.36833478 0.41569701
+ 0.56705215 0.7514592  0.76647524 0.98545328 0.94735652 1.
+ 1.03456669 1.05723244 0.99501273 0.95658371] 40
+____________________BC03_________________________ Optimization__________________________
+length of the chisquare_photo_list 40
+chisquare photo: 2.0495666618935835
+running time for chisquare_photo without saving the functions: 0.09614999999999974
+length of the chisquare_photo_list 40
+chisquare photo: 2.0495666618935835
+running time for chisquare_photo without saving the functions: 0.10215200000000024
+length of the chisquare_photo_list 40
+chisquare photo: 2.049566686147089
+running time for chisquare_photo without saving the functions: 0.09460400000000035
+length of the chisquare_photo_list 40
+chisquare photo: 2.049566878012406
+running time for chisquare_photo without saving the functions: 0.09884700000000013
+length of the chisquare_photo_list 40
+chisquare photo: 2416.749436286421
+running time for chisquare_photo without saving the functions: 0.09420599999999979
+length of the chisquare_photo_list 40
+chisquare photo: 0.9808524013798022
+running time for chisquare_photo without saving the functions: 0.09445999999999977
+length of the chisquare_photo_list 40
+chisquare photo: 0.9808524013798022
+running time for chisquare_photo without saving the functions: 0.0952219999999997
+length of the chisquare_photo_list 40
+chisquare photo: 0.9808524170224796
+running time for chisquare_photo without saving the functions: 0.09617300000000029
+length of the chisquare_photo_list 40
+chisquare photo: 0.9808524755515367
+running time for chisquare_photo without saving the functions: 0.09467599999999976
+length of the chisquare_photo_list 40
+chisquare photo: 1169.0978818998854
+running time for chisquare_photo without saving the functions: 0.09835200000000022
+length of the chisquare_photo_list 40
+chisquare photo: 0.893050548164345
+running time for chisquare_photo without saving the functions: 0.09388299999999994
+length of the chisquare_photo_list 40
+chisquare photo: 0.893050548164345
+running time for chisquare_photo without saving the functions: 0.09814699999999998
+length of the chisquare_photo_list 40
+chisquare photo: 0.8930505738536585
+running time for chisquare_photo without saving the functions: 0.09861699999999995
+length of the chisquare_photo_list 40
+chisquare photo: 0.893050609216553
+running time for chisquare_photo without saving the functions: 0.0943719999999999
+length of the chisquare_photo_list 40
+chisquare photo: 1167.5249350750778
+running time for chisquare_photo without saving the functions: 0.09571400000000008
+length of the chisquare_photo_list 40
+chisquare photo: 0.7704196750343731
+running time for chisquare_photo without saving the functions: 0.09483700000000006
+length of the chisquare_photo_list 40
+chisquare photo: 0.773866182269628
+running time for chisquare_photo without saving the functions: 0.09415700000000005
+length of the chisquare_photo_list 40
+chisquare photo: 0.8747028018465922
+running time for chisquare_photo without saving the functions: 0.10033100000000061
+length of the chisquare_photo_list 40
+chisquare photo: 0.8747028018465922
+running time for chisquare_photo without saving the functions: 0.09555800000000048
+length of the chisquare_photo_list 40
+chisquare photo: 0.8747028255202757
+running time for chisquare_photo without saving the functions: 0.09568900000000014
+length of the chisquare_photo_list 40
+chisquare photo: 0.8747028576801501
+running time for chisquare_photo without saving the functions: 0.0942659999999993
+length of the chisquare_photo_list 40
+chisquare photo: 0.7737499153775069
+running time for chisquare_photo without saving the functions: 0.09720200000000112
+length of the chisquare_photo_list 40
+chisquare photo: 0.8648199545886015
+running time for chisquare_photo without saving the functions: 0.09856800000000021
+length of the chisquare_photo_list 40
+chisquare photo: 0.8648199545886015
+running time for chisquare_photo without saving the functions: 0.09467500000000051
+length of the chisquare_photo_list 40
+chisquare photo: 0.8648199771161286
+running time for chisquare_photo without saving the functions: 0.09464200000000034
+length of the chisquare_photo_list 40
+chisquare photo: 0.8648200074691725
+running time for chisquare_photo without saving the functions: 0.09692800000000013
+length of the chisquare_photo_list 40
+chisquare photo: 0.7732954634774402
+running time for chisquare_photo without saving the functions: 0.09689600000000098
+length of the chisquare_photo_list 40
+chisquare photo: 0.8585337432944536
+running time for chisquare_photo without saving the functions: 0.09624499999999969
+length of the chisquare_photo_list 40
+chisquare photo: 0.8585337432944536
+running time for chisquare_photo without saving the functions: 0.09528399999999948
+length of the chisquare_photo_list 40
+chisquare photo: 0.8585337650717163
+running time for chisquare_photo without saving the functions: 0.09807900000000025
+length of the chisquare_photo_list 40
+chisquare photo: 0.8585337942490859
+running time for chisquare_photo without saving the functions: 0.10064200000000056
+length of the chisquare_photo_list 40
+chisquare photo: 0.8241884271350808
+running time for chisquare_photo without saving the functions: 0.095244000000001
+length of the chisquare_photo_list 40
+chisquare photo: 0.8241884271350808
+running time for chisquare_photo without saving the functions: 0.09551400000000143
+length of the chisquare_photo_list 40
+chisquare photo: 0.8241884466142718
+running time for chisquare_photo without saving the functions: 0.09685900000000025
+length of the chisquare_photo_list 40
+chisquare photo: 0.8241884649878441
+running time for chisquare_photo without saving the functions: 0.0921599999999998
+length of the chisquare_photo_list 40
+chisquare photo: 0.8152878768916644
+running time for chisquare_photo without saving the functions: 0.09492799999999946
+length of the chisquare_photo_list 40
+chisquare photo: 0.8152878768916644
+running time for chisquare_photo without saving the functions: 0.09920800000000085
+length of the chisquare_photo_list 40
+chisquare photo: 0.8152878950461941
+running time for chisquare_photo without saving the functions: 0.09904000000000046
+length of the chisquare_photo_list 40
+chisquare photo: 0.8152879117605624
+running time for chisquare_photo without saving the functions: 0.10978300000000019
+length of the chisquare_photo_list 40
+chisquare photo: 0.816539820130501
+running time for chisquare_photo without saving the functions: 0.10167900000000074
+length of the chisquare_photo_list 40
+chisquare photo: 0.816539820130501
+running time for chisquare_photo without saving the functions: 0.09675000000000011
+length of the chisquare_photo_list 40
+chisquare photo: 0.8165398385987762
+running time for chisquare_photo without saving the functions: 0.09483499999999978
+length of the chisquare_photo_list 40
+chisquare photo: 0.8165398557348036
+running time for chisquare_photo without saving the functions: 0.10036199999999873
+length of the chisquare_photo_list 40
+chisquare photo: 0.817406161627914
+running time for chisquare_photo without saving the functions: 0.0948670000000007
+length of the chisquare_photo_list 40
+chisquare photo: 0.817406161627914
+running time for chisquare_photo without saving the functions: 0.09539399999999887
+length of the chisquare_photo_list 40
+chisquare photo: 0.8174061810879467
+running time for chisquare_photo without saving the functions: 0.0957309999999989
+length of the chisquare_photo_list 40
+chisquare photo: 0.8174061996703001
+running time for chisquare_photo without saving the functions: 0.09337599999999924
+length of the chisquare_photo_list 40
+chisquare photo: 0.7543475399253439
+running time for chisquare_photo without saving the functions: 0.09671499999999966
+length of the chisquare_photo_list 40
+chisquare photo: 0.8168100644980794
+running time for chisquare_photo without saving the functions: 0.09382100000000015
+length of the chisquare_photo_list 40
+chisquare photo: 0.8168100644980794
+running time for chisquare_photo without saving the functions: 0.09611899999999984
+length of the chisquare_photo_list 40
+chisquare photo: 0.8168100840661008
+running time for chisquare_photo without saving the functions: 0.09412500000000001
+length of the chisquare_photo_list 40
+chisquare photo: 0.8168101028297732
+running time for chisquare_photo without saving the functions: 0.09440299999999979
+length of the chisquare_photo_list 40
+chisquare photo: 0.7141661571838497
+running time for chisquare_photo without saving the functions: 0.09407500000000013
+length of the chisquare_photo_list 40
+chisquare photo: 0.7595682223207655
+running time for chisquare_photo without saving the functions: 0.09273699999999963
+length of the chisquare_photo_list 40
+chisquare photo: 0.8164901483430903
+running time for chisquare_photo without saving the functions: 0.0981740000000002
+length of the chisquare_photo_list 40
+chisquare photo: 0.8164901483430903
+running time for chisquare_photo without saving the functions: 0.09654300000000049
+length of the chisquare_photo_list 40
+chisquare photo: 0.816490167933825
+running time for chisquare_photo without saving the functions: 0.09388200000000069
+length of the chisquare_photo_list 40
+chisquare photo: 0.8164901867424014
+running time for chisquare_photo without saving the functions: 0.09636800000000001
+length of the chisquare_photo_list 40
+chisquare photo: 0.9822646356526578
+running time for chisquare_photo without saving the functions: 0.09513600000000011
+length of the chisquare_photo_list 40
+chisquare photo: 0.7567039619666346
+running time for chisquare_photo without saving the functions: 0.09425200000000089
+length of the chisquare_photo_list 40
+chisquare photo: 0.8158442944930329
+running time for chisquare_photo without saving the functions: 0.09734000000000087
+length of the chisquare_photo_list 40
+chisquare photo: 0.8158442944930329
+running time for chisquare_photo without saving the functions: 0.09521900000000016
+length of the chisquare_photo_list 40
+chisquare photo: 0.8158443141082902
+running time for chisquare_photo without saving the functions: 0.09598500000000065
+length of the chisquare_photo_list 40
+chisquare photo: 0.8158443329760171
+running time for chisquare_photo without saving the functions: 0.09707000000000043
+length of the chisquare_photo_list 40
+chisquare photo: 0.7044492750136919
+running time for chisquare_photo without saving the functions: 0.09600100000000111
+length of the chisquare_photo_list 40
+chisquare photo: 0.8144036742484767
+running time for chisquare_photo without saving the functions: 0.0930730000000004
+length of the chisquare_photo_list 40
+chisquare photo: 0.8144036742484767
+running time for chisquare_photo without saving the functions: 0.09377899999999961
+length of the chisquare_photo_list 40
+chisquare photo: 0.8144036972644448
+running time for chisquare_photo without saving the functions: 0.09588200000000136
+length of the chisquare_photo_list 40
+chisquare photo: 0.8144037155064051
+running time for chisquare_photo without saving the functions: 0.09991200000000156
+length of the chisquare_photo_list 40
+chisquare photo: 535.9978950579108
+running time for chisquare_photo without saving the functions: 0.10403999999999947
+length of the chisquare_photo_list 40
+chisquare photo: 0.7154560293873541
+running time for chisquare_photo without saving the functions: 0.10142600000000002
+length of the chisquare_photo_list 40
+chisquare photo: 0.8086019000151875
+running time for chisquare_photo without saving the functions: 0.09428400000000003
+length of the chisquare_photo_list 40
+chisquare photo: 0.8086019000151875
+running time for chisquare_photo without saving the functions: 0.09799399999999991
+length of the chisquare_photo_list 40
+chisquare photo: 0.8086019226236733
+running time for chisquare_photo without saving the functions: 0.09591799999999928
+length of the chisquare_photo_list 40
+chisquare photo: 0.8086019405407722
+running time for chisquare_photo without saving the functions: 0.09620599999999868
+length of the chisquare_photo_list 40
+chisquare photo: 0.716064620211095
+running time for chisquare_photo without saving the functions: 0.09927199999999914
+length of the chisquare_photo_list 40
+chisquare photo: 0.8014010968034958
+running time for chisquare_photo without saving the functions: 0.0944509999999994
+length of the chisquare_photo_list 40
+chisquare photo: 0.8014010968034958
+running time for chisquare_photo without saving the functions: 0.09225399999999873
+length of the chisquare_photo_list 40
+chisquare photo: 0.8014011189210695
+running time for chisquare_photo without saving the functions: 0.09520400000000073
+length of the chisquare_photo_list 40
+chisquare photo: 0.8014011364683595
+running time for chisquare_photo without saving the functions: 0.0959140000000005
+length of the chisquare_photo_list 40
+chisquare photo: 0.7156305702285369
+running time for chisquare_photo without saving the functions: 0.09688700000000061
+length of the chisquare_photo_list 40
+chisquare photo: 0.7464178018955401
+running time for chisquare_photo without saving the functions: 0.09734699999999918
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007782717802374
+running time for chisquare_photo without saving the functions: 0.09565599999999996
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007782717802374
+running time for chisquare_photo without saving the functions: 0.09971099999999922
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007782938575954
+running time for chisquare_photo without saving the functions: 0.10752300000000048
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007783113765192
+running time for chisquare_photo without saving the functions: 0.09473400000000076
+length of the chisquare_photo_list 40
+chisquare photo: 0.7158201980050947
+running time for chisquare_photo without saving the functions: 0.09439900000000101
+length of the chisquare_photo_list 40
+chisquare photo: 0.7459344469195719
+running time for chisquare_photo without saving the functions: 0.09560899999999961
+length of the chisquare_photo_list 40
+chisquare photo: 0.7482309473469083
+running time for chisquare_photo without saving the functions: 0.0945210000000003
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007146984712759
+running time for chisquare_photo without saving the functions: 0.09453999999999851
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007146984712759
+running time for chisquare_photo without saving the functions: 0.09726599999999941
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007147205449405
+running time for chisquare_photo without saving the functions: 0.09389899999999862
+length of the chisquare_photo_list 40
+chisquare photo: 0.8007147380614722
+running time for chisquare_photo without saving the functions: 0.09523599999999988
+length of the chisquare_photo_list 40
+chisquare photo: 1.032752188765432
+running time for chisquare_photo without saving the functions: 0.09507800000000088
+length of the chisquare_photo_list 40
+chisquare photo: 0.7454007484734071
+running time for chisquare_photo without saving the functions: 0.12233699999999992
+length of the chisquare_photo_list 40
+chisquare photo: 0.7481454056472115
+running time for chisquare_photo without saving the functions: 0.10097100000000125
+length of the chisquare_photo_list 40
+chisquare photo: 0.8006429218437491
+running time for chisquare_photo without saving the functions: 0.10921700000000101
+length of the chisquare_photo_list 40
+chisquare photo: 0.8006429218437491
+running time for chisquare_photo without saving the functions: 0.10033900000000173
+length of the chisquare_photo_list 40
+chisquare photo: 0.8006429439136582
+running time for chisquare_photo without saving the functions: 0.09960500000000039
+length of the chisquare_photo_list 40
+chisquare photo: 0.8006429614280235
+running time for chisquare_photo without saving the functions: 0.10263400000000189
+length of the chisquare_photo_list 40
+chisquare photo: 0.9979371720861456
+running time for chisquare_photo without saving the functions: 0.10075300000000098
+length of the chisquare_photo_list 40
+chisquare photo: 0.7448764159084227
+running time for chisquare_photo without saving the functions: 0.1009600000000006
+length of the chisquare_photo_list 40
+chisquare photo: 0.7480546947202817
+running time for chisquare_photo without saving the functions: 0.09519600000000139
+length of the chisquare_photo_list 40
+chisquare photo: 0.8005633006304688
+running time for chisquare_photo without saving the functions: 0.10164699999999982
+length of the chisquare_photo_list 40
+chisquare photo: 0.8005633006304688
+running time for chisquare_photo without saving the functions: 0.10377400000000137
+length of the chisquare_photo_list 40
+chisquare photo: 0.8005633226965866
+running time for chisquare_photo without saving the functions: 0.09819399999999945
+length of the chisquare_photo_list 40
+chisquare photo: 0.8005633402090216
+running time for chisquare_photo without saving the functions: 0.09566600000000136
+length of the chisquare_photo_list 40
+chisquare photo: 0.9675683056037825
+running time for chisquare_photo without saving the functions: 0.09369200000000077
+length of the chisquare_photo_list 40
+chisquare photo: 0.744394102292202
+running time for chisquare_photo without saving the functions: 0.09909700000000043
+length of the chisquare_photo_list 40
+chisquare photo: 0.7479629446002344
+running time for chisquare_photo without saving the functions: 0.10189199999999943
+length of the chisquare_photo_list 40
+chisquare photo: 0.8004768948383099
+running time for chisquare_photo without saving the functions: 0.10228900000000252
+length of the chisquare_photo_list 40
+chisquare photo: 0.8004768948383099
+running time for chisquare_photo without saving the functions: 0.09527600000000191
+length of the chisquare_photo_list 40
+chisquare photo: 0.8004769169006541
+running time for chisquare_photo without saving the functions: 0.09803100000000242
+length of the chisquare_photo_list 40
+chisquare photo: 0.8004769344114269
+running time for chisquare_photo without saving the functions: 0.09938100000000105
+length of the chisquare_photo_list 40
+chisquare photo: 0.6856863784586372
+running time for chisquare_photo without saving the functions: 0.10236699999999743
+length of the chisquare_photo_list 40
+chisquare photo: 0.7439601708973876
+running time for chisquare_photo without saving the functions: 0.09759000000000029
+length of the chisquare_photo_list 40
+chisquare photo: 0.7478716132763038
+running time for chisquare_photo without saving the functions: 0.10200100000000134
+length of the chisquare_photo_list 40
+chisquare photo: 0.8003848076000495
+running time for chisquare_photo without saving the functions: 0.10083600000000104
+length of the chisquare_photo_list 40
+chisquare photo: 0.8003848076000495
+running time for chisquare_photo without saving the functions: 0.09733900000000162
+length of the chisquare_photo_list 40
+chisquare photo: 0.8003848296587261
+running time for chisquare_photo without saving the functions: 0.0913339999999998
+length of the chisquare_photo_list 40
+chisquare photo: 0.8003848471681531
+running time for chisquare_photo without saving the functions: 0.09692700000000087
+length of the chisquare_photo_list 40
+chisquare photo: 0.6842272288265747
+running time for chisquare_photo without saving the functions: 0.09480599999999839
+length of the chisquare_photo_list 40
+chisquare photo: 0.743567750362774
+running time for chisquare_photo without saving the functions: 0.09676800000000085
+length of the chisquare_photo_list 40
+chisquare photo: 0.7477805825858399
+running time for chisquare_photo without saving the functions: 0.09790399999999977
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002879059400444
+running time for chisquare_photo without saving the functions: 0.09724999999999895
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002879059400444
+running time for chisquare_photo without saving the functions: 0.09483399999999875
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002879279951743
+running time for chisquare_photo without saving the functions: 0.09622399999999942
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002879455035299
+running time for chisquare_photo without saving the functions: 0.09759499999999832
+length of the chisquare_photo_list 40
+chisquare photo: 0.8771309531459206
+running time for chisquare_photo without saving the functions: 0.10102299999999786
+length of the chisquare_photo_list 40
+chisquare photo: 0.7432141483801995
+running time for chisquare_photo without saving the functions: 0.09522300000000072
+length of the chisquare_photo_list 40
+chisquare photo: 0.7476901520284921
+running time for chisquare_photo without saving the functions: 0.0932639999999978
+length of the chisquare_photo_list 40
+chisquare photo: 0.7482016510538141
+running time for chisquare_photo without saving the functions: 0.09715399999999974
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002778091375579
+running time for chisquare_photo without saving the functions: 0.09356199999999859
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002778091375579
+running time for chisquare_photo without saving the functions: 0.09458300000000008
+length of the chisquare_photo_list 40
+chisquare photo: 0.800277831192328
+running time for chisquare_photo without saving the functions: 0.10127199999999803
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002778487006024
+running time for chisquare_photo without saving the functions: 0.09542199999999923
+length of the chisquare_photo_list 40
+chisquare photo: 0.7964154113778552
+running time for chisquare_photo without saving the functions: 0.09465799999999902
+length of the chisquare_photo_list 40
+chisquare photo: 0.7429593046293546
+running time for chisquare_photo without saving the functions: 0.09329999999999927
+length of the chisquare_photo_list 40
+chisquare photo: 0.747654222037041
+running time for chisquare_photo without saving the functions: 0.09563599999999894
+length of the chisquare_photo_list 40
+chisquare photo: 0.7481928220939607
+running time for chisquare_photo without saving the functions: 0.09396800000000027
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002674269848546
+running time for chisquare_photo without saving the functions: 0.09601100000000073
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002674269848546
+running time for chisquare_photo without saving the functions: 0.09390399999999843
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002674490393054
+running time for chisquare_photo without saving the functions: 0.09834400000000088
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002674665475388
+running time for chisquare_photo without saving the functions: 0.09325700000000126
+length of the chisquare_photo_list 40
+chisquare photo: 0.7659519296345652
+running time for chisquare_photo without saving the functions: 0.09687500000000071
+length of the chisquare_photo_list 40
+chisquare photo: 0.714157236067992
+running time for chisquare_photo without saving the functions: 0.09769599999999912
+length of the chisquare_photo_list 40
+chisquare photo: 0.7455937703728237
+running time for chisquare_photo without saving the functions: 0.0970809999999993
+length of the chisquare_photo_list 40
+chisquare photo: 0.7479674544068364
+running time for chisquare_photo without saving the functions: 0.09745200000000054
+length of the chisquare_photo_list 40
+chisquare photo: 0.748219226968635
+running time for chisquare_photo without saving the functions: 0.09782500000000027
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002627108129072
+running time for chisquare_photo without saving the functions: 0.09320500000000109
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002627108129072
+running time for chisquare_photo without saving the functions: 0.09317199999999914
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002627328672134
+running time for chisquare_photo without saving the functions: 0.09451599999999871
+length of the chisquare_photo_list 40
+chisquare photo: 0.8002627503754407
+running time for chisquare_photo without saving the functions: 0.09912600000000182
+length of the chisquare_photo_list 40
+chisquare photo: 0.7712813683310618
+running time for chisquare_photo without saving the functions: 0.10113599999999678
+length of the chisquare_photo_list 40
+chisquare photo: 0.7712813683310618
+running time for chisquare_photo without saving the functions: 0.09925999999999746
+length of the chisquare_photo_list 40
+chisquare photo: 0.7712813695718506
+running time for chisquare_photo without saving the functions: 0.09666500000000156
+length of the chisquare_photo_list 40
+chisquare photo: 0.7712814064464374
+running time for chisquare_photo without saving the functions: 0.0946460000000009
+length of the chisquare_photo_list 40
+chisquare photo: 502.38024429199277
+running time for chisquare_photo without saving the functions: 0.09453600000000151
+length of the chisquare_photo_list 40
+chisquare photo: 3.1788159257229163
+running time for chisquare_photo without saving the functions: 0.09657199999999833
+length of the chisquare_photo_list 40
+chisquare photo: 0.7980786731304164
+running time for chisquare_photo without saving the functions: 0.09483900000000034
+length of the chisquare_photo_list 40
+chisquare photo: 0.7743294664322671
+running time for chisquare_photo without saving the functions: 0.09497999999999962
+length of the chisquare_photo_list 40
+chisquare photo: 0.7743294664322671
+running time for chisquare_photo without saving the functions: 0.09403400000000062
+length of the chisquare_photo_list 40
+chisquare photo: 0.7743294644778416
+running time for chisquare_photo without saving the functions: 0.09288400000000152
+length of the chisquare_photo_list 40
+chisquare photo: 0.774329508155315
+running time for chisquare_photo without saving the functions: 0.09931900000000127
+length of the chisquare_photo_list 40
+chisquare photo: 0.7742498109073642
+running time for chisquare_photo without saving the functions: 0.09593899999999778
+length of the chisquare_photo_list 40
+chisquare photo: 0.7742498109073642
+running time for chisquare_photo without saving the functions: 0.09454399999999907
+length of the chisquare_photo_list 40
+chisquare photo: 0.7742498089326564
+running time for chisquare_photo without saving the functions: 0.09640399999999971
+length of the chisquare_photo_list 40
+chisquare photo: 0.7742498526450002
+running time for chisquare_photo without saving the functions: 0.09518500000000074
+length of the chisquare_photo_list 40
+chisquare photo: 0.7737687651520628
+running time for chisquare_photo without saving the functions: 0.09830299999999781
+length of the chisquare_photo_list 40
+chisquare photo: 0.7737687651520628
+running time for chisquare_photo without saving the functions: 0.1042299999999976
+length of the chisquare_photo_list 40
+chisquare photo: 0.773768763143039
+running time for chisquare_photo without saving the functions: 0.09619700000000009
+length of the chisquare_photo_list 40
+chisquare photo: 0.7737688068859152
+running time for chisquare_photo without saving the functions: 0.0978519999999996
+length of the chisquare_photo_list 40
+chisquare photo: 0.771371958287444
+running time for chisquare_photo without saving the functions: 0.09394200000000197
+length of the chisquare_photo_list 40
+chisquare photo: 0.771371958287444
+running time for chisquare_photo without saving the functions: 0.09521000000000157
+length of the chisquare_photo_list 40
+chisquare photo: 0.7713719561148037
+running time for chisquare_photo without saving the functions: 0.09679399999999916
+length of the chisquare_photo_list 40
+chisquare photo: 0.7713719999940674
+running time for chisquare_photo without saving the functions: 0.10617100000000335
+length of the chisquare_photo_list 40
+chisquare photo: 0.7597825440508471
+running time for chisquare_photo without saving the functions: 0.10494900000000129
+length of the chisquare_photo_list 40
+chisquare photo: 0.7597825440508471
+running time for chisquare_photo without saving the functions: 0.0996789999999983
+length of the chisquare_photo_list 40
+chisquare photo: 0.7597825410848354
+running time for chisquare_photo without saving the functions: 0.10083700000000206
+length of the chisquare_photo_list 40
+chisquare photo: 0.7597825856142989
+running time for chisquare_photo without saving the functions: 0.10150000000000148
+length of the chisquare_photo_list 40
+chisquare photo: 1.3308854529871919
+running time for chisquare_photo without saving the functions: 0.10129300000000185
+length of the chisquare_photo_list 40
+chisquare photo: 0.7545560890405588
+running time for chisquare_photo without saving the functions: 0.1049900000000008
+length of the chisquare_photo_list 40
+chisquare photo: 0.7545560890405588
+running time for chisquare_photo without saving the functions: 0.09600299999999962
+length of the chisquare_photo_list 40
+chisquare photo: 0.7545560857119706
+running time for chisquare_photo without saving the functions: 0.09988600000000147
+length of the chisquare_photo_list 40
+chisquare photo: 0.7545561305365769
+running time for chisquare_photo without saving the functions: 0.10679700000000025
+length of the chisquare_photo_list 40
+chisquare photo: 1.2496626369370047
+running time for chisquare_photo without saving the functions: 0.11984900000000209
+length of the chisquare_photo_list 40
+chisquare photo: 0.7418042203229478
+running time for chisquare_photo without saving the functions: 0.0981059999999978
+length of the chisquare_photo_list 40
+chisquare photo: 0.7418042203229478
+running time for chisquare_photo without saving the functions: 0.09529699999999863
+length of the chisquare_photo_list 40
+chisquare photo: 0.7418042160953131
+running time for chisquare_photo without saving the functions: 0.09476300000000037
+length of the chisquare_photo_list 40
+chisquare photo: 0.7418042616471681
+running time for chisquare_photo without saving the functions: 0.09856099999999657
+length of the chisquare_photo_list 40
+chisquare photo: 1.2496830660093745
+running time for chisquare_photo without saving the functions: 0.10458699999999865
+length of the chisquare_photo_list 40
+chisquare photo: 0.7306141867506839
+running time for chisquare_photo without saving the functions: 0.11022900000000035
+length of the chisquare_photo_list 40
+chisquare photo: 0.7306141867506839
+running time for chisquare_photo without saving the functions: 0.10441399999999845
+length of the chisquare_photo_list 40
+chisquare photo: 0.7306141817177658
+running time for chisquare_photo without saving the functions: 0.10567200000000199
+length of the chisquare_photo_list 40
+chisquare photo: 0.7306142279127144
+running time for chisquare_photo without saving the functions: 0.0971030000000006
+length of the chisquare_photo_list 40
+chisquare photo: 1.24972155284251
+running time for chisquare_photo without saving the functions: 0.10459900000000033
+length of the chisquare_photo_list 40
+chisquare photo: 1.3433452278443803
+running time for chisquare_photo without saving the functions: 0.09896200000000022
+length of the chisquare_photo_list 40
+chisquare photo: 0.729613102528844
+running time for chisquare_photo without saving the functions: 0.09623900000000063
+length of the chisquare_photo_list 40
+chisquare photo: 0.729613102528844
+running time for chisquare_photo without saving the functions: 0.09523000000000081
+length of the chisquare_photo_list 40
+chisquare photo: 0.729613097422128
+running time for chisquare_photo without saving the functions: 0.10886599999999902
+length of the chisquare_photo_list 40
+chisquare photo: 0.7296131436768457
+running time for chisquare_photo without saving the functions: 0.1031109999999984
+length of the chisquare_photo_list 40
+chisquare photo: 1.2497609151432532
+running time for chisquare_photo without saving the functions: 0.09920999999999935
+length of the chisquare_photo_list 40
+chisquare photo: 1.3423377938396897
+running time for chisquare_photo without saving the functions: 0.09507199999999827
+length of the chisquare_photo_list 40
+chisquare photo: 0.7286192188392797
+running time for chisquare_photo without saving the functions: 0.096584
+length of the chisquare_photo_list 40
+chisquare photo: 0.7286192188392797
+running time for chisquare_photo without saving the functions: 0.09253700000000009
+length of the chisquare_photo_list 40
+chisquare photo: 0.7286192136584717
+running time for chisquare_photo without saving the functions: 0.09626699999999744
+length of the chisquare_photo_list 40
+chisquare photo: 0.7286192599739494
+running time for chisquare_photo without saving the functions: 0.09819399999999945
+length of the chisquare_photo_list 40
+chisquare photo: 1.2497856521510768
+running time for chisquare_photo without saving the functions: 0.10454700000000017
+length of the chisquare_photo_list 40
+chisquare photo: 1.341346132860084
+running time for chisquare_photo without saving the functions: 0.09587799999999902
+length of the chisquare_photo_list 40
+chisquare photo: 1.3512344947355168
+running time for chisquare_photo without saving the functions: 0.09437400000000196
+length of the chisquare_photo_list 40
+chisquare photo: 0.7285208980312496
+running time for chisquare_photo without saving the functions: 0.09376500000000121
+length of the chisquare_photo_list 40
+chisquare photo: 0.7285208980312496
+running time for chisquare_photo without saving the functions: 0.10620200000000324
+length of the chisquare_photo_list 40
+chisquare photo: 0.7285208928430823
+running time for chisquare_photo without saving the functions: 0.09821900000000028
+length of the chisquare_photo_list 40
+chisquare photo: 0.7285209391645895
+running time for chisquare_photo without saving the functions: 0.10623599999999911
+length of the chisquare_photo_list 40
+chisquare photo: 1.2498628125786568
+running time for chisquare_photo without saving the functions: 0.09714099999999704
+length of the chisquare_photo_list 40
+chisquare photo: 1.3412561405926329
+running time for chisquare_photo without saving the functions: 0.10068900000000269
+length of the chisquare_photo_list 40
+chisquare photo: 1.3511258440058436
+running time for chisquare_photo without saving the functions: 0.09570300000000032
+length of the chisquare_photo_list 40
+chisquare photo: 0.7284227289315142
+running time for chisquare_photo without saving the functions: 0.09691899999999976
+length of the chisquare_photo_list 40
+chisquare photo: 0.7284227289315142
+running time for chisquare_photo without saving the functions: 0.09448100000000181
+length of the chisquare_photo_list 40
+chisquare photo: 0.7284227237360006
+running time for chisquare_photo without saving the functions: 0.09929400000000044
+length of the chisquare_photo_list 40
+chisquare photo: 0.7284227700635454
+running time for chisquare_photo without saving the functions: 0.09845999999999933
+length of the chisquare_photo_list 40
+chisquare photo: 1.249822822742582
+running time for chisquare_photo without saving the functions: 0.09867199999999698
+length of the chisquare_photo_list 40
+chisquare photo: 1.3411533185480593
+running time for chisquare_photo without saving the functions: 0.099575999999999
+length of the chisquare_photo_list 40
+chisquare photo: 1.3510160864604472
+running time for chisquare_photo without saving the functions: 0.09834100000000134
+length of the chisquare_photo_list 40
+chisquare photo: 0.728324634569578
+running time for chisquare_photo without saving the functions: 0.09747600000000034
+length of the chisquare_photo_list 40
+chisquare photo: 0.728324634569578
+running time for chisquare_photo without saving the functions: 0.10557800000000128
+length of the chisquare_photo_list 40
+chisquare photo: 0.7283246293667334
+running time for chisquare_photo without saving the functions: 0.09996200000000144
+length of the chisquare_photo_list 40
+chisquare photo: 0.7283246757003075
+running time for chisquare_photo without saving the functions: 0.0970109999999984
+length of the chisquare_photo_list 40
+chisquare photo: 1.2497582701788077
+running time for chisquare_photo without saving the functions: 0.09535700000000347
+length of the chisquare_photo_list 40
+chisquare photo: 1.3410477461007837
+running time for chisquare_photo without saving the functions: 0.09728299999999734
+length of the chisquare_photo_list 40
+chisquare photo: 1.3509061204174706
+running time for chisquare_photo without saving the functions: 0.09563200000000194
+length of the chisquare_photo_list 40
+chisquare photo: 0.728226591443202
+running time for chisquare_photo without saving the functions: 0.09785400000000166
+length of the chisquare_photo_list 40
+chisquare photo: 0.728226591443202
+running time for chisquare_photo without saving the functions: 0.09548600000000107
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282265862330141
+running time for chisquare_photo without saving the functions: 0.09821700000000178
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282266325726082
+running time for chisquare_photo without saving the functions: 0.09749700000000061
+length of the chisquare_photo_list 40
+chisquare photo: 1.249840549927129
+running time for chisquare_photo without saving the functions: 0.1012909999999998
+length of the chisquare_photo_list 40
+chisquare photo: 1.3409592200318372
+running time for chisquare_photo without saving the functions: 0.09814300000000031
+length of the chisquare_photo_list 40
+chisquare photo: 1.3507979256072016
+running time for chisquare_photo without saving the functions: 0.09472099999999983
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517888903765836
+running time for chisquare_photo without saving the functions: 0.09831300000000098
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282168061044973
+running time for chisquare_photo without saving the functions: 0.10174100000000053
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282168061044973
+running time for chisquare_photo without saving the functions: 0.09413600000000244
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282168008935596
+running time for chisquare_photo without saving the functions: 0.09935100000000219
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282168472337813
+running time for chisquare_photo without saving the functions: 0.09532700000000105
+length of the chisquare_photo_list 40
+chisquare photo: 1.2501417798800538
+running time for chisquare_photo without saving the functions: 0.09854699999999994
+length of the chisquare_photo_list 40
+chisquare photo: 1.3409845241282763
+running time for chisquare_photo without saving the functions: 0.09754500000000021
+length of the chisquare_photo_list 40
+chisquare photo: 1.350790587752289
+running time for chisquare_photo without saving the functions: 0.10173500000000146
+length of the chisquare_photo_list 40
+chisquare photo: 1.35177823964053
+running time for chisquare_photo without saving the functions: 0.0978500000000011
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282070549433781
+running time for chisquare_photo without saving the functions: 0.09876599999999769
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282070549433781
+running time for chisquare_photo without saving the functions: 0.09828100000000006
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282070497317374
+running time for chisquare_photo without saving the functions: 0.0974120000000056
+length of the chisquare_photo_list 40
+chisquare photo: 0.7282070960725395
+running time for chisquare_photo without saving the functions: 0.09900499999999823
+length of the chisquare_photo_list 40
+chisquare photo: 1.2487720779352507
+running time for chisquare_photo without saving the functions: 0.09757900000000319
+length of the chisquare_photo_list 40
+chisquare photo: 1.3408154760451836
+running time for chisquare_photo without saving the functions: 0.10118500000000097
+length of the chisquare_photo_list 40
+chisquare photo: 1.350763584739892
+running time for chisquare_photo without saving the functions: 0.09672899999999629
+length of the chisquare_photo_list 40
+chisquare photo: 1.351765652948488
+running time for chisquare_photo without saving the functions: 0.09725099999999998
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281971581533335
+running time for chisquare_photo without saving the functions: 0.09901999999999589
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281971581533335
+running time for chisquare_photo without saving the functions: 0.09711099999999817
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281971529409408
+running time for chisquare_photo without saving the functions: 0.09689300000000145
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281971992823638
+running time for chisquare_photo without saving the functions: 0.09734100000000012
+length of the chisquare_photo_list 40
+chisquare photo: 1.2500802527221206
+running time for chisquare_photo without saving the functions: 0.10063699999999898
+length of the chisquare_photo_list 40
+chisquare photo: 1.3409575880019486
+running time for chisquare_photo without saving the functions: 0.09740600000000654
+length of the chisquare_photo_list 40
+chisquare photo: 1.35076797281532
+running time for chisquare_photo without saving the functions: 0.09771700000000294
+length of the chisquare_photo_list 40
+chisquare photo: 1.35175606515039
+running time for chisquare_photo without saving the functions: 0.09617800000000187
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281874016458687
+running time for chisquare_photo without saving the functions: 0.09487000000000023
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281874016458687
+running time for chisquare_photo without saving the functions: 0.09371999999999758
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281873964327301
+running time for chisquare_photo without saving the functions: 0.10040599999999955
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281874427747588
+running time for chisquare_photo without saving the functions: 0.0962949999999978
+length of the chisquare_photo_list 40
+chisquare photo: 1.2504247971174114
+running time for chisquare_photo without saving the functions: 0.09902499999999748
+length of the chisquare_photo_list 40
+chisquare photo: 1.340987785209588
+running time for chisquare_photo without saving the functions: 0.09559999999999746
+length of the chisquare_photo_list 40
+chisquare photo: 1.350761158163215
+running time for chisquare_photo without saving the functions: 0.1018889999999999
+length of the chisquare_photo_list 40
+chisquare photo: 1.351745495554291
+running time for chisquare_photo without saving the functions: 0.09850800000000248
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281776827360887
+running time for chisquare_photo without saving the functions: 0.09828599999999454
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281776827360887
+running time for chisquare_photo without saving the functions: 0.09889400000000137
+length of the chisquare_photo_list 40
+chisquare photo: 0.728177677522212
+running time for chisquare_photo without saving the functions: 0.09660899999999373
+length of the chisquare_photo_list 40
+chisquare photo: 0.728177723864845
+running time for chisquare_photo without saving the functions: 0.09804799999999858
+length of the chisquare_photo_list 40
+chisquare photo: 1.2500089590923196
+running time for chisquare_photo without saving the functions: 0.09792099999999948
+length of the chisquare_photo_list 40
+chisquare photo: 1.3409297504222046
+running time for chisquare_photo without saving the functions: 0.1022350000000003
+length of the chisquare_photo_list 40
+chisquare photo: 1.3507454399744725
+running time for chisquare_photo without saving the functions: 0.10626100000000349
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517340720373994
+running time for chisquare_photo without saving the functions: 0.09828699999999913
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281679203259896
+running time for chisquare_photo without saving the functions: 0.0997340000000051
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281679203259896
+running time for chisquare_photo without saving the functions: 0.10349600000000692
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281679151114041
+running time for chisquare_photo without saving the functions: 0.1097079999999977
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281679614545964
+running time for chisquare_photo without saving the functions: 0.11995999999999896
+length of the chisquare_photo_list 40
+chisquare photo: 1.2496896966520799
+running time for chisquare_photo without saving the functions: 0.10196400000000239
+length of the chisquare_photo_list 40
+chisquare photo: 1.340882706931565
+running time for chisquare_photo without saving the functions: 0.1062299999999965
+length of the chisquare_photo_list 40
+chisquare photo: 1.3507307911604614
+running time for chisquare_photo without saving the functions: 0.11126900000000006
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517227125742708
+running time for chisquare_photo without saving the functions: 0.10690400000000011
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281581234643852
+running time for chisquare_photo without saving the functions: 0.10498199999999969
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281581234643852
+running time for chisquare_photo without saving the functions: 0.14016699999999815
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281581182490533
+running time for chisquare_photo without saving the functions: 0.12868499999999727
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281581645928792
+running time for chisquare_photo without saving the functions: 0.11800399999999911
+length of the chisquare_photo_list 40
+chisquare photo: 1.24978931841032
+running time for chisquare_photo without saving the functions: 0.10547700000000049
+length of the chisquare_photo_list 40
+chisquare photo: 1.3408849677561696
+running time for chisquare_photo without saving the functions: 0.09819699999999898
+length of the chisquare_photo_list 40
+chisquare photo: 1.3507211117457127
+running time for chisquare_photo without saving the functions: 0.10536900000000315
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517118178197172
+running time for chisquare_photo without saving the functions: 0.10860699999999923
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281483423055906
+running time for chisquare_photo without saving the functions: 0.09938499999999806
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281483423055906
+running time for chisquare_photo without saving the functions: 0.11102999999999952
+length of the chisquare_photo_list 40
+chisquare photo: 0.728148337089532
+running time for chisquare_photo without saving the functions: 0.11800399999999911
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281483834339664
+running time for chisquare_photo without saving the functions: 0.1150260000000003
+length of the chisquare_photo_list 40
+chisquare photo: 1.249163646680185
+running time for chisquare_photo without saving the functions: 0.10999999999999943
+length of the chisquare_photo_list 40
+chisquare photo: 1.3408024603861532
+running time for chisquare_photo without saving the functions: 0.10563499999999948
+length of the chisquare_photo_list 40
+chisquare photo: 1.350702849516693
+running time for chisquare_photo without saving the functions: 0.10580299999999454
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517000757826556
+running time for chisquare_photo without saving the functions: 0.11865299999999479
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281384955407957
+running time for chisquare_photo without saving the functions: 0.10454599999999914
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281384955407957
+running time for chisquare_photo without saving the functions: 0.09636000000000422
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281384903240179
+running time for chisquare_photo without saving the functions: 0.0965139999999991
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281385366690442
+running time for chisquare_photo without saving the functions: 0.10322299999999984
+length of the chisquare_photo_list 40
+chisquare photo: 1.249747428820076
+running time for chisquare_photo without saving the functions: 0.1015690000000049
+length of the chisquare_photo_list 40
+chisquare photo: 1.340860213038686
+running time for chisquare_photo without saving the functions: 0.09729699999999752
+length of the chisquare_photo_list 40
+chisquare photo: 1.3506987347632218
+running time for chisquare_photo without saving the functions: 0.10385199999999628
+length of the chisquare_photo_list 40
+chisquare photo: 1.3516896850477802
+running time for chisquare_photo without saving the functions: 0.10061900000000179
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517888508971727
+running time for chisquare_photo without saving the functions: 0.10967899999999986
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281375169939024
+running time for chisquare_photo without saving the functions: 0.10069399999999717
+Optimized BC03 weighted reduced chisqure result:      fun: 1.7212175527545077
+     jac: array([0.52743185, 0.87339258])
+ message: 'Optimization terminated successfully.'
+    nfev: 313
+     nit: 50
+    njev: 50
+  status: 0
+ success: True
+       x: array([1.27810196, 0.76674644])
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281375169939024
+running time for chisquare_photo without saving the functions: 0.10492800000000102
+length of the chisquare_photo_list 40
+chisquare photo: 0.7281375169939024
+running time for chisquare_photo without saving the functions: 0.09819899999999393
+length of the chisquare_photo_list 40
+chisquare photo: 1.3517987681901584
+running time for chisquare_photo without saving the functions: 0.09930100000000408

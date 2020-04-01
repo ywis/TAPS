@@ -1,0 +1,322 @@
+8 CPUs
+46
+f1_u_megaprime_sagem.res.txt
+f2_g_megaprime_sagem.res.txt
+f3_r_megaprime_sagem.res.txt
+f4_i_megaprime_sagem.res.txt
+f5_z_megaprime_sagem.res.txt
+f6_hst_acsF606W.res.txt
+f7_hst_acs_F814W.res.txt
+f8_wfc3-F125W.res.txt
+f9_wfc3-F140W.res.txt
+f10_wfc3-F160W.res.txt
+f11_newfirm_J1.res
+f12_newfirm_J2.res
+f13_newfirm_J3.res
+f14_newfirm_H1.res
+f15_newfirm_H2.res
+f16_newfirm_Ks.res
+f17_wircam_J.res
+f18_wircam_H.res.txt
+f19_wircam_Ks.res.txt
+Time reading the filter curves and without generate filter functions: 1.9155001640319824
+0 14044
+intrinsic Av:0.7
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10201.29 17201.84
+masking region: 11411.99 16433.23 54 277
+before masking 312
+after masking 223
+scale index 114
+scale index 61
+scale index 50
+Number of photometric points for rescaling: 3
+0th coeff 1.04965477591739
+photo flux  [0.17575842 0.37282447 0.82842163 1.02388019 1.03294137 0.70779853
+ 1.         0.87448402 0.8257431  0.77082827 0.9104515  0.76401764
+ 0.82431203 0.76726734 0.67772488 0.47388211 1.01730714 0.81550075
+ 0.57233815]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+1 17857
+intrinsic Av:0.5
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10183.95 17434.49
+masking region: 11413.740000000002 16427.09 53 268
+before masking 312
+after masking 215
+scale index 110
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 3
+0th coeff 1.081641570248591
+photo flux  [0.30064717 0.59393944 0.98736724 1.         0.93368916 0.91297533
+ 0.95703786 0.71618537 0.62886273 0.57459491 0.86375933 0.78058765
+ 0.73520783 0.57393933 0.52730821 0.37169    0.75749838 0.56948681
+ 0.3974569 ]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+2 19820
+intrinsic Av:1.1
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10186.84 17258.17
+masking region: 11402.8 16431.16 54 275
+before masking 312
+after masking 221
+scale index 113
+scale index 61
+scale index 51
+Number of photometric points for rescaling: 3
+0th coeff 1.0449835454243896
+photo flux  [0.08914224 0.29523697 0.78416179 1.         1.04713901 0.65723799
+ 0.97725694 0.93060071 0.9061634  0.86598647 1.04870546 0.97888829
+ 0.97664636 0.86158361 0.81100295 0.61813445 1.05080899 0.88661004
+ 0.65396462]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+3 26829
+intrinsic Av:0.4
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10264.23 17541.26
+masking region: 11406.85 16437.73 49 264
+before masking 312
+after masking 215
+scale index 110
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 3
+0th coeff 1.0984035976877193
+photo flux  [0.13746874 0.41304633 0.85584205 1.         0.9642587  0.78300444
+ 0.96383037 0.76551207 0.69589703 0.63684911 0.90502218 0.82232949
+ 0.79170864 0.64119811 0.56260488 0.42151671 0.83537659 0.63937184
+ 0.43702533]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+4 16150
+intrinsic Av:0.3
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10182.19 17426.27
+masking region: 11409.28 16418.41 53 268
+before masking 312
+after masking 215
+scale index 110
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 3
+0th coeff 0.9890508167772841
+photo flux  [0.09023116 0.28111969 0.63913542 1.00987224 1.03668705 0.59161987
+ 1.         0.92654234 0.87565219 0.8313483  0.93893725 0.93487899
+ 0.89945703 0.82778016 0.74304386 0.55751132 0.88117156 0.83335534
+ 0.5925896 ]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+5 17442
+intrinsic Av:0.8
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10172.24 17339.18
+masking region: 11404.98 16431.5 54 272
+before masking 312
+after masking 218
+scale index 112
+scale index 60
+scale index 50
+Number of photometric points for rescaling: 3
+0th coeff 1.1181179238815175
+photo flux  [0.08464471 0.2020308  0.44452278 0.93154558 1.         0.41374885
+ 0.93499848 0.91506971 0.85346038 0.80492772 0.96791694 0.93466336
+ 0.90519704 0.82692701 0.74548691 0.60858073 1.03621507 0.8520177
+ 0.6208087 ]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+6 21300
+intrinsic Av:0.7
+Galaxy age: 1.584893192461111
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10189.76 17287.05
+masking region: 11411.07 16434.63 54 274
+before masking 312
+after masking 220
+scale index 113
+scale index 60
+scale index 50
+Number of photometric points for rescaling: 3
+0th coeff 1.0546023681673937
+photo flux  [0.27320082 0.64148721 1.         0.99683377 0.93727788 0.93724518
+ 0.93160658 0.75975708 0.68209078 0.62017101 0.81400344 0.75354175
+ 0.72765026 0.60815525 0.50808257 0.36133945 0.81511125 0.59599426
+ 0.38356257]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+7 10415
+intrinsic Av:0.9
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10226.91 17643.09
+masking region: 11411.89 16419.49 50 260
+before masking 312
+after masking 210
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 0.9397138472272686
+photo flux  [0.27525845 0.59162802 0.96427187 1.         0.93507369 0.89803459
+ 0.95504189 0.75636554 0.68475498 0.61640546 0.83373792 0.76926524
+ 0.75963097 0.63027643 0.55080848 0.38865839 0.70472188 0.60070249
+ 0.38309368]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+8 35066
+intrinsic Av:0.3
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10193.35 17474.27
+masking region: 11400.53 16435.26 52 267
+before masking 312
+after masking 215
+scale index 110
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 3
+0th coeff 1.070487879131148
+photo flux  [0.07779763 0.25726668 0.57115157 0.98242003 1.         0.55148557
+ 1.00993494 0.86012756 0.79676778 0.7490766  0.84469676 0.81678851
+ 0.77755437 0.76894585 0.62982664 0.5227069  1.01559142 0.80747495
+ 0.57325813]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+9 11221
+intrinsic Av:0.6
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10233.71 17613.31
+masking region: 11409.95 16416.69 50 261
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 1.0277850956884282
+photo flux  [0.07091186 0.28000774 0.75920594 1.00114558 1.02876512 0.6699978
+ 1.         0.96005117 0.93115244 0.87944857 0.97366755 0.91682846
+ 0.928658   0.87837121 0.78585918 0.58008103 1.0642016  0.91700854
+ 0.64765255]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+10 12772
+intrinsic Av:0.3
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10236.5 17643.82
+masking region: 11417.61 16419.19 50 260
+before masking 312
+after masking 210
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 0.9559640868090039
+photo flux  [0.06776019 0.26511091 0.63509324 1.02366587 1.06204508 0.56192675
+ 1.         0.95213427 0.90700685 0.87540624 0.97418023 0.93828354
+ 0.92458136 0.88335777 0.76638707 0.56385351 1.05006278 0.92074773
+ 0.64001887]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+11 16063
+intrinsic Av:1.3
+Galaxy age: 1.0
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10273.16 17674.77
+masking region: 11407.53 16428.66 48 259
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 1.0146155732252435
+photo flux  [0.19254703 0.5033905  0.94726387 1.         0.93576865 0.8712325
+ 0.95776246 0.81407778 0.74768938 0.68995825 0.84741956 0.79788201
+ 0.78248735 0.67691798 0.59413561 0.42534694 0.86787096 0.70481955
+ 0.44738947]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+12 12772
+intrinsic Av:0.3
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10251.06 17688.23
+masking region: 11413.13 16434.53 49 259
+before masking 312
+after masking 210
+scale index 107
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 0.9659550389304427
+photo flux  [0.06776019 0.26511091 0.63509324 1.02366587 1.06204508 0.56192675
+ 1.         0.95213427 0.90700685 0.87540624 0.97418023 0.93828354
+ 0.92458136 0.88335777 0.76638707 0.56385351 1.05006278 0.92074773
+ 0.64001887]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+13 14044
+intrinsic Av:0.7
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10162.07 17183.42
+masking region: 11411.13 16428.61 56 278
+before masking 312
+after masking 222
+scale index 114
+scale index 61
+scale index 51
+Number of photometric points for rescaling: 3
+0th coeff 1.0894929742014652
+photo flux  [0.17575842 0.37282447 0.82842163 1.02388019 1.03294137 0.70779853
+ 1.         0.87448402 0.8257431  0.77082827 0.9104515  0.76401764
+ 0.82431203 0.76726734 0.67772488 0.47388211 1.01730714 0.81550075
+ 0.57233815]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
+14 17442
+intrinsic Av:0.8
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10211.18 17593.94
+masking region: 11418.03 16427.03 51 262
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 3
+0th coeff 1.1081899132508166
+photo flux  [0.08464471 0.2020308  0.44452278 0.93154558 1.         0.41374885
+ 0.93499848 0.91506971 0.85346038 0.80492772 0.96791694 0.93466336
+ 0.90519704 0.82692701 0.74548691 0.60858073 1.03621507 0.8520177
+ 0.6208087 ]
+Number of photo points and the positive ones: 19 19
+Photo SNR: 19 (array([], dtype=int64),)
+-------------------------------------End--------------------------------------------------------------------------------------
