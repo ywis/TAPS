@@ -1850,7 +1850,7 @@ for i in range(19,len(df)):#range(len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     plt.tick_params(axis='both', which='major', labelsize=20)
     plt.tick_params(axis='both', which='minor', labelsize=20)
-    figname=current_dir+outcome_dir+plot_dir+'GOODSS_SSP_M05_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
     plt.savefig(figname)
     plt.clf()
 

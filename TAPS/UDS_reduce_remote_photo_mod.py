@@ -1656,7 +1656,7 @@ for i in range(92,len(df)):
     model_wave, model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1769,7 +1769,7 @@ for i in range(92,len(df)):
             model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
             plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1880,7 +1880,7 @@ for i in range(92,len(df)):
                 model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
                 plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1959,7 +1959,7 @@ for i in range(92,len(df)):
     model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2075,7 +2075,7 @@ for i in range(92,len(df)):
             model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
             plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2190,7 +2190,7 @@ for i in range(92,len(df)):
                 model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
                 plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2267,7 +2267,7 @@ for i in range(92,len(df)):
     model_wave = BC03_wave_list_num
     model_flux = BC03_flux_attenuated    
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2383,7 +2383,7 @@ for i in range(92,len(df)):
             model_wave = BC03_wave_list_num
             model_flux = BC03_flux_attenuated
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2498,7 +2498,7 @@ for i in range(92,len(df)):
                 model_wave = BC03_wave_list_num
                 model_flux = BC03_flux_attenuated
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
