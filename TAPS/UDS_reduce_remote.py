@@ -38,8 +38,8 @@ df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153", "L
                 "L163", "nfilt163", "L156", "nfilt156", "L157", "nfilt157", "L158", "nfilt158", "L159", "nfilt159", "L160", "nfilt160", "L135", "nfilt135", "L136", "nfilt136",\
                 "L137", "nfilt137", "L138", "nfilt138", "L139", "nfilt139", "L270", "nfilt270", "L271", "nfilt271", "L272", "nfilt272", "L273", "nfilt273", "L274", "nfilt274", "L275", "nfilt275"]
 
-
-df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_uds_20200317_PSB.csv', sep=',')
+df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_uds_20200303_PSB.csv', sep=',')
+# df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_uds_20200317_PSB.csv', sep=',')
 df.columns=['detector','ID','region','filename','chip']
 
 df_photometry=pd.read_csv('/home/siqi/uds_3dhst.v4.2.cats/Catalog/uds_3dhst.v4.2.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
@@ -557,7 +557,7 @@ def lg_minimize_age_AV_vector_weighted(X):
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             lnprobval = -0.5*(0.5*x2+0.5*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
             if np.isnan(lnprobval):
                 lnprobval = -np.inf
@@ -658,7 +658,7 @@ def minimize_age_AV_vector_weighted_return_flux(X):
         # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
         else:
             x2_tot = np.inf
@@ -757,7 +757,7 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
         # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             pass
         else:
             x2 = np.inf
@@ -870,7 +870,7 @@ def minimize_age_AV_vector_weighted_M13(X):
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
     # print(x2_photo)
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
         else:
             x2_tot = np.inf
@@ -978,7 +978,7 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
     tok = time.clock()
     # print('time for lg_minimize',tok-tik)
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             lnprobval = -0.5*(0.5*x2+0.5*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
             if np.isnan(lnprobval):
                 lnprobval = -np.inf
@@ -1077,7 +1077,7 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
         else:
             x2_tot = np.inf
@@ -1086,7 +1086,6 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
        print('valueError', x2_tot)
     # print('model wave range', model2[0,0], model2[0,-1], split_galaxy_age_string )
     # print('model wave separately', M13_model_list[53][0,0],M13_model_list[53][0,-1],len(M13_model_list[53][0,:]),len(M13_model_list[54][0,:]),M13_model_list[54][0,0],M13_model_list[53][0,-1])
-    model_test=2.*(3.0-galaxy_age)*M13_model_list[53] + 2.*(galaxy_age-2.0)*M13_model_list[54]
     # print('model test', model_test[0,0], model_test[0,-1])
     # print('age',galaxy_age,age_prior)
     return x2_tot, model2[0,:], smooth_Flux_M13_1Gyr_new
@@ -1178,7 +1177,7 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     
     try: 
-        if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             pass
         else:
             x2 = np.inf
@@ -1362,6 +1361,15 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     
     return x2,x2_photo
 
+def find_nearest(array,value):
+    idx = np.searchsorted(array, value, side="left")
+    # print('find nearest idx searchsorted:', idx)
+    if np.isnan(idx):
+        print('find nearest',idx,value)
+    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1#array[idx-1]
+    else:
+        return idx#array[idx]
 def all_same(items):
     return all(x == items[0] for x in items)
 def reduced_chi_square(data_wave,data,data_err,model_wave,model):
@@ -1381,8 +1389,21 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     tik = time.clock()
     model_wave = model_wave*(1+redshift_1)
     model_flux = model_flux
-    photometry_list = np.zeros(len(wave_list))
-    for i in range(1,15):
+
+    filter_array_index= np.arange(1,15)
+
+    #    SNR Mask
+    mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
+    photometric_flux = photometric_flux[mask_SNR3_photo]
+    photometric_flux_err = photometric_flux_err[mask_SNR3_photo]
+    photometric_flux_err_mod = photometric_flux_err_mod[mask_SNR3_photo]
+    filter_array_index = filter_array_index[mask_SNR3_photo]
+
+    photometry_list = np.zeros(len(photometric_flux))
+    photometry_list_index = 0
+    # print('masked filter array index:',filter_array_index)
+    
+    for i in filter_array_index:
 
         sum_flambda_AB_K = 0
         sum_transmission = 0
@@ -1417,33 +1438,26 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
                         length = length+1
                 except:
                     print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
-                    print('closest transmission grid point',find_nearest(filter_curve[:,0],wave[j]),)                
+                     
         elif n==1:
             flambda_AB_K = flux[0]*transmission[0]
             sum_flambda_AB_K += flambda_AB_K*wave_inter
-            sum_transmission += np.sum(transmission)*wave_inter#/len(transmission)#np.trapz(transmission, x=wave)
+            sum_transmission += np.sum(transmission)*wave_inter
             length = length+1
         
         if length == 0:
-            photometry_list[i-1]=0
+            photometry_list[photometry_list_index]=0
         else:
-            photometry_list[i-1] = sum_flambda_AB_K/sum_transmission
+            photometry_list[photometry_list_index] = sum_flambda_AB_K/sum_transmission
+        photometry_list_index += 1
+
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
+    
     tok = time.clock()
+    dof = len(chisquare_photo_list)-2
+    reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
 
-    mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3)
-    chisquare_photo_list = chisquare_photo_list[mask_SNR3_photo]
-
-    return np.sum(chisquare_photo_list)/(len(chisquare_photo_list)-2)
-def find_nearest(array,value):
-    idx = np.searchsorted(array, value, side="left")
-    # print('find nearest idx searchsorted:', idx)
-    if np.isnan(idx):
-        print('find nearest',idx,value)
-    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
-        return idx-1#array[idx-1]
-    else:
-        return idx#array[idx]
+    return reduced_chi_square_photo
 
 
 nsteps=3000
@@ -1471,7 +1485,7 @@ for i in range(1,15):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in range(18,len(df)):
+for i in range(len(df)):
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -1626,9 +1640,7 @@ for i in range(18,len(df)):
     y_fit = np.polyval(p,x)
     y = y_fit*y
 
-    # print(y)
-    photometry_list = np.zeros(len(wave_list))
-    print('photo flux: ',photometric_flux,len(photometry_list),len(photometric_flux[photometric_flux>0]))
+    print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
 # Using bounds to constrain M05
     print('____________________M05_________________________ Optimization__________________________')
     X = np.array([galaxy_age, intrinsic_Av])
@@ -1656,7 +1668,7 @@ for i in range(18,len(df)):
     model_wave, model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1769,7 +1781,7 @@ for i in range(18,len(df)):
             model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
             plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1880,7 +1892,7 @@ for i in range(18,len(df)):
                 model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
                 plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1959,7 +1971,7 @@ for i in range(18,len(df)):
     model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2075,7 +2087,7 @@ for i in range(18,len(df)):
             model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
             plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2190,7 +2202,7 @@ for i in range(18,len(df)):
                 model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
                 plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2267,7 +2279,7 @@ for i in range(18,len(df)):
     model_wave = BC03_wave_list_num
     model_flux = BC03_flux_attenuated    
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2383,7 +2395,7 @@ for i in range(18,len(df)):
             model_wave = BC03_wave_list_num
             model_flux = BC03_flux_attenuated
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2498,7 +2510,7 @@ for i in range(18,len(df)):
                 model_wave = BC03_wave_list_num
                 model_flux = BC03_flux_attenuated
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)

@@ -1369,9 +1369,17 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     
     return x2,x2_photo
 
+def find_nearest(array,value):
+    idx = np.searchsorted(array, value, side="left")
+    # print('find nearest idx searchsorted:', idx)
+    if np.isnan(idx):
+        print('find nearest',idx,value)
+    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1#array[idx-1]
+    else:
+        return idx#array[idx]
 def all_same(items):
     return all(x == items[0] for x in items)
-
 def reduced_chi_square(data_wave,data,data_err,model_wave,model):
     n=len(data_wave)
     chi_square = 0
@@ -1389,8 +1397,21 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     tik = time.clock()
     model_wave = model_wave*(1+redshift_1)
     model_flux = model_flux
-    photometry_list = np.zeros(len(wave_list))
-    for i in range(1,37):
+
+    filter_array_index= np.arange(1,37)
+
+    #    SNR Mask
+    mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
+    photometric_flux = photometric_flux[mask_SNR3_photo]
+    photometric_flux_err = photometric_flux_err[mask_SNR3_photo]
+    photometric_flux_err_mod = photometric_flux_err_mod[mask_SNR3_photo]
+    filter_array_index = filter_array_index[mask_SNR3_photo]
+
+    photometry_list = np.zeros(len(photometric_flux))
+    photometry_list_index = 0
+    # print('masked filter array index:',filter_array_index)
+    
+    for i in filter_array_index:
 
         sum_flambda_AB_K = 0
         sum_transmission = 0
@@ -1425,35 +1446,27 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
                         length = length+1
                 except:
                     print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
-                    print('closest transmission grid point',find_nearest(filter_curve[:,0],wave[j]),)
-
                      
         elif n==1:
             flambda_AB_K = flux[0]*transmission[0]
             sum_flambda_AB_K += flambda_AB_K*wave_inter
-            sum_transmission += np.sum(transmission)*wave_inter#/len(transmission)#np.trapz(transmission, x=wave)
+            sum_transmission += np.sum(transmission)*wave_inter
             length = length+1
         
         if length == 0:
-            photometry_list[i-1]=0
+            photometry_list[photometry_list_index]=0
         else:
-            photometry_list[i-1] = sum_flambda_AB_K/sum_transmission
+            photometry_list[photometry_list_index] = sum_flambda_AB_K/sum_transmission
+        photometry_list_index += 1
+
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
+    
     tok = time.clock()
+    dof = len(chisquare_photo_list)-2
+    reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
 
-    mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3)
-    chisquare_photo_list = chisquare_photo_list[mask_SNR3_photo]
+    return reduced_chi_square_photo
 
-    return np.sum(chisquare_photo_list)/(len(chisquare_photo_list)-2)
-def find_nearest(array,value):
-    idx = np.searchsorted(array, value, side="left")
-    # print('find nearest idx searchsorted:', idx)
-    if np.isnan(idx):
-        print('find nearest',idx,value)
-    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
-        return idx-1#array[idx-1]
-    else:
-        return idx#array[idx]
 
 
 nsteps=3000
@@ -1483,7 +1496,7 @@ for i in range(1,37):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in [45]:#range(46,57):#range(len(df)):
+for i in range(len(df)):
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -1779,9 +1792,7 @@ for i in [45]:#range(46,57):#range(len(df)):
     y_fit = np.polyval(p,x)
     y = y_fit*y
 
-    photometry_list = np.zeros(len(wave_list))
-
-    print('photo flux: ',photometric_flux,len(photometry_list),len(photometric_flux[photometric_flux>0]))
+    print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
 # Using bounds to constrain
 # Test with M05 models
     print('____________________M05_________________________ Optimization__________________________')
