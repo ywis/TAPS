@@ -1,0 +1,617 @@
+8 CPUs
+46
+f1_u_megaprime_sagem.res.txt
+f2_g_megaprime_sagem.res.txt
+f3_r_megaprime_sagem.res.txt
+f4_i_megaprime_sagem.res.txt
+f5_z_megaprime_sagem.res.txt
+f6_hst_acsF606W.res.txt
+f7_hst_acs_F814W.res.txt
+f8_wfc3-F125W.res.txt
+f9_wfc3-F140W.res.txt
+f10_wfc3-F160W.res.txt
+f11_newfirm_J1.res
+f12_newfirm_J2.res
+f13_newfirm_J3.res
+f14_newfirm_H1.res
+f15_newfirm_H2.res
+f16_newfirm_Ks.res
+f17_wircam_J.res
+f18_wircam_H.res.txt
+f19_wircam_Ks.res.txt
+Time reading the filter curves and without generate filter functions: 0.4544382095336914
+0 26380
+intrinsic Av:0.7
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10232.97 17445.7
+masking region: 11409.75 16419.92 51 267
+before masking 312
+after masking 216
+scale index 111
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.14292194]
+photo flux  [ 0.20099118  0.51011628  0.94337635  1.          0.95428853  0.84113285
+  0.95595596  0.77772277  0.70414244  0.63619731 -0.90557786 -0.69451475
+ -0.60720185 -0.40736832 -0.34052242 -0.21039836  0.92094678  0.66410088
+  0.46178377]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 3.851349744105433
+            Iterations: 10
+            Function evaluations: 44
+            Gradient evaluations: 10
+     fun: 3.851349744105433
+     jac: array([ 0.00037819, -0.00096691])
+ message: 'Optimization terminated successfully.'
+    nfev: 44
+     nit: 10
+    njev: 10
+  status: 0
+ success: True
+       x: array([2.83042456, 0.42637505])
+1 14399
+intrinsic Av:0.4
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10177.25 17415.47
+masking region: 11405.06 16433.24 53 269
+before masking 312
+after masking 216
+scale index 110
+scale index 59
+scale index 49
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.08085238]
+photo flux  [ 0.06703826  0.20754924  0.48464168  0.95327974  1.          0.46627992
+  0.96842791  0.88868385  0.81926011  0.76957985 -1.16850523 -0.89616162
+ -0.7834981  -0.52564449 -0.43939041 -0.27148586  1.03859463  0.8201657
+  0.63265837]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.6761146884417744
+            Iterations: 9
+            Function evaluations: 41
+            Gradient evaluations: 9
+     fun: 1.6761146884417744
+     jac: array([0.00501215, 0.00665331])
+ message: 'Optimization terminated successfully.'
+    nfev: 41
+     nit: 9
+    njev: 9
+  status: 0
+ success: True
+       x: array([1.36979208, 0.12605849])
+2 25411
+intrinsic Av:0.3
+Galaxy age: 1.584893192461111
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10160.4 17198.44
+masking region: 11412.99 16419.31 56 277
+before masking 312
+after masking 221
+scale index 113
+scale index 61
+scale index 50
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.08399032]
+photo flux  [ 0.29082548  0.58967999  1.01560366  1.          0.90096094  0.99599594
+  1.00215758  0.66823351  0.57756505  0.50998531 -4.68806283 -3.59541562
+ -3.14340769 -2.1088946  -1.76284179 -1.08920588  0.73652618  0.48852764
+  0.3451661 ]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 2.0154545535448825
+            Iterations: 6
+            Function evaluations: 25
+            Gradient evaluations: 6
+     fun: 2.0154545535448825
+     jac: array([-8.94069672e-07,  9.89649561e+00])
+ message: 'Optimization terminated successfully.'
+    nfev: 25
+     nit: 6
+    njev: 6
+  status: 0
+ success: True
+       x: array([1.41957081e+00, 6.07164028e-17])
+3 27777
+intrinsic Av:0.8
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10158.34 17176.74
+masking region: 11408.5 16423.28 56 278
+before masking 312
+after masking 222
+scale index 114
+scale index 61
+scale index 51
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.12885059]
+photo flux  [ 0.06465473  0.16899798  0.40524861  0.86125973  1.          0.36347653
+  0.8821593   1.02748206  0.99224321  0.95751325 -3.10958215 -2.38483157
+ -2.08501567 -1.39882532 -1.16928923 -0.72246796  1.18216261  0.96275635
+  0.81431624]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.2442849468594472
+            Iterations: 6
+            Function evaluations: 29
+            Gradient evaluations: 6
+     fun: 1.2442849468594472
+     jac: array([-0.00164902, -0.00425422])
+ message: 'Optimization terminated successfully.'
+    nfev: 29
+     nit: 6
+    njev: 6
+  status: 0
+ success: True
+       x: array([1.14253372, 0.65662541])
+4 28143
+intrinsic Av:0.6
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10218.64 17622.1
+masking region: 11402.17 16425.1 50 261
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.07025066]
+photo flux  [ 0.06539896  0.20490317  0.42520278  0.88475801  1.          0.43682578
+  0.9147442   0.96328228  0.91452439  0.86467547 -3.29497888 -2.52701787
+ -2.20932661 -1.48222484 -1.23900355 -0.7655423   1.09527398  0.87540758
+  0.71521873]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.0478099994385293
+            Iterations: 7
+            Function evaluations: 32
+            Gradient evaluations: 7
+     fun: 1.0478099994385293
+     jac: array([ 7.57277012e-05, -3.68072093e-03])
+ message: 'Optimization terminated successfully.'
+    nfev: 32
+     nit: 7
+    njev: 7
+  status: 0
+ success: True
+       x: array([1.13330957, 0.37690365])
+5 37275
+intrinsic Av:0.5
+Galaxy age: 2.511886431509582
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10202.74 17452.4
+masking region: 11403.39 16440.18 52 268
+before masking 312
+after masking 216
+scale index 111
+scale index 60
+scale index 49
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.13731461]
+photo flux  [ 0.15352213  0.41975586  0.89898726  1.          0.9759059   0.77468538
+  0.96931844  0.80718623  0.75148788  0.66506308 -1.23769317 -0.94922391
+ -0.82988952 -0.55676823 -0.465407   -0.28756071  0.94387502  0.70081538
+  0.4977182 ]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.0844285037978183
+            Iterations: 10
+            Function evaluations: 43
+            Gradient evaluations: 10
+     fun: 1.0844285037978183
+     jac: array([6.34342432e-05, 8.20890069e-04])
+ message: 'Optimization terminated successfully.'
+    nfev: 43
+     nit: 10
+    njev: 10
+  status: 0
+ success: True
+       x: array([2.83930135, 0.42688653])
+6 38278
+intrinsic Av:0.9
+Galaxy age: 1.2589254117941662
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10210.07 17386.68
+masking region: 11400.86 16433.04 52 270
+before masking 312
+after masking 218
+scale index 112
+scale index 60
+scale index 50
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.10228902]
+photo flux  [ 0.07137232  0.16770818  0.39563804  0.87557579  1.          0.36337874
+  0.86551478  0.95769102  0.93578316  0.87484258 -0.91419758 -0.70112547
+ -0.61298148 -0.41124584 -0.34376367 -0.21240103  1.10744515  0.94076665
+  0.72734449]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 3.131532580475475
+            Iterations: 7
+            Function evaluations: 31
+            Gradient evaluations: 7
+     fun: 3.131532580475475
+     jac: array([ 0.00163239, -0.0070844 ])
+ message: 'Optimization terminated successfully.'
+    nfev: 31
+     nit: 7
+    njev: 7
+  status: 0
+ success: True
+       x: array([1.35665144, 0.4690331 ])
+7 19787
+intrinsic Av:0.5
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10273.12 17668.84
+masking region: 11406.9 16424.06 48 259
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.10579336]
+photo flux  [ 0.07371172  0.29017868  0.74469266  1.02709329  1.05699744  0.65841309
+  1.          0.94220179  0.91780028  0.88130013 -0.94676357 -0.7261013
+ -0.63481741 -0.42589544 -0.35600939 -0.21996728  1.13354941  0.92860608
+  0.673416  ]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 4.430522505496048
+            Iterations: 10
+            Function evaluations: 45
+            Gradient evaluations: 10
+     fun: 4.430522505496048
+     jac: array([3.88622284e-05, 3.51309776e-04])
+ message: 'Optimization terminated successfully.'
+    nfev: 45
+     nit: 10
+    njev: 10
+  status: 0
+ success: True
+       x: array([2.42672534, 0.76690057])
+8 20244
+intrinsic Av:0.5
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10242.13 17570.21
+masking region: 11411.33 16430.53 50 263
+before masking 312
+after masking 213
+scale index 109
+scale index 59
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.08389205]
+photo flux  [ 0.08484285  0.19301526  0.42894333  0.90480557  1.          0.4022654
+  0.92487835  0.95319784  0.92300739  0.86314424 -3.18836873 -2.44525535
+ -2.1378431  -1.43426696 -1.19891517 -0.74077292  1.13071741  0.93095353
+  0.72311837]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.007982058032563
+            Iterations: 8
+            Function evaluations: 37
+            Gradient evaluations: 8
+     fun: 1.007982058032563
+     jac: array([0.00095692, 0.00176242])
+ message: 'Optimization terminated successfully.'
+    nfev: 37
+     nit: 8
+    njev: 8
+  status: 0
+ success: True
+       x: array([1.17888694, 0.4264138 ])
+9 33787
+intrinsic Av:0.8
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10185.35 17195.3
+masking region: 11415.18 16422.33 55 277
+before masking 312
+after masking 222
+scale index 114
+scale index 61
+scale index 50
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.03499088]
+photo flux  [ 0.0611768   0.22182509  0.53474802  0.94739783  1.          0.49998565
+  0.972934    0.92795786  0.88973389  0.86280827 -0.64736197 -0.49648126
+ -0.4340647  -0.29121158 -0.24342608 -0.15040551  1.064438    0.8341874
+  0.65625599]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 2.675844768678611
+            Iterations: 11
+            Function evaluations: 49
+            Gradient evaluations: 11
+     fun: 2.675844768678611
+     jac: array([ 0.00086659, -0.015378  ])
+ message: 'Optimization terminated successfully.'
+    nfev: 49
+     nit: 11
+    njev: 11
+  status: 0
+ success: True
+       x: array([2.24036112, 0.49225351])
+10 30005
+intrinsic Av:0.3
+Galaxy age: 2.511886431509582
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10197.97 17238.14
+masking region: 11413.709999999997 16418.44 54 275
+before masking 312
+after masking 221
+scale index 113
+scale index 61
+scale index 50
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.083245]
+photo flux  [ 0.22931079  0.51451239  0.94253802  1.          0.91505138  0.84880263
+  0.95100446  0.74664639  0.66404097  0.60140661 -1.86905061 -1.43343082
+ -1.25322298 -0.84078027 -0.70281492 -0.43424779  0.86349896  0.59293416
+  0.43264375]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 0.897069172849627
+            Iterations: 18
+            Function evaluations: 83
+            Gradient evaluations: 18
+     fun: 0.897069172849627
+     jac: array([0.00020923, 0.00027831])
+ message: 'Optimization terminated successfully.'
+    nfev: 83
+     nit: 18
+    njev: 18
+  status: 0
+ success: True
+       x: array([1.31748004, 0.23332559])
+11 30483
+intrinsic Av:0.5
+Galaxy age: 1.584893192461111
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10300.77 17687.46
+masking region: 11413.38 16424.55 47 258
+before masking 312
+after masking 211
+scale index 108
+scale index 58
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [0.97226147]
+photo flux  [ 0.06174828  0.19693806  0.45675989  0.92607338  1.          0.42289321
+  0.93263563  0.91996255  0.85423138  0.8137316  -1.63417422 -1.25329709
+ -1.09573528 -0.73512266 -0.61449488 -0.37967754  1.05977018  0.85874968
+  0.67446438]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 2.1449838808823993
+            Iterations: 12
+            Function evaluations: 51
+            Gradient evaluations: 12
+     fun: 2.1449838808823993
+     jac: array([-0.00083342,  0.00174177])
+ message: 'Optimization terminated successfully.'
+    nfev: 51
+     nit: 12
+    njev: 12
+  status: 0
+ success: True
+       x: array([1.42916691, 0.22111749])
+12 34526
+intrinsic Av:0.2
+Galaxy age: 3.981071705534969
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10181.46 17314.47
+masking region: 11406.98 16433.19 54 273
+before masking 312
+after masking 219
+scale index 112
+scale index 60
+scale index 50
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.03685415]
+photo flux  [ 0.11016692  0.21314114  0.46727547  0.93465511  1.          0.46257367
+  0.95480264  0.93858246  0.86765016  0.81271336 -6.92184334 -5.30856871
+ -4.64118685 -3.11374625 -2.60280528 -1.60819357  1.07514537  0.85880868
+  0.60374   ]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 0.4856061982517338
+            Iterations: 8
+            Function evaluations: 36
+            Gradient evaluations: 8
+     fun: 0.4856061982517338
+     jac: array([7.91251659e-06, 6.59488142e-05])
+ message: 'Optimization terminated successfully.'
+    nfev: 36
+     nit: 8
+    njev: 8
+  status: 0
+ success: True
+       x: array([1.14639215, 0.24458658])
+13 37372
+intrinsic Av:0.4
+Galaxy age: 3.1622776601683795
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10179.02 17408.1
+masking region: 11401.89 16424.31 53 269
+before masking 312
+after masking 216
+scale index 111
+scale index 60
+scale index 49
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.07397254]
+photo flux  [ 0.0579578   0.19080839  0.44373116  0.92249074  1.          0.43246143
+  0.95624657  0.96902271  0.91355281  0.87614848 -2.1073421  -1.61618369
+ -1.41300055  0.99081301 -0.79241914 -0.48961149  1.12787826  0.96387158
+  0.71937873]
+Number of photo points and the positive ones: 14
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 13, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.089851262948082
+            Iterations: 9
+            Function evaluations: 39
+            Gradient evaluations: 9
+     fun: 1.089851262948082
+     jac: array([-0.00013636, -0.00274906])
+ message: 'Optimization terminated successfully.'
+    nfev: 39
+     nit: 9
+    njev: 9
+  status: 0
+ success: True
+       x: array([1.23312485, 0.40796613])
+14 33787
+intrinsic Av:0.8
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10263.39 17669.48
+masking region: 11397.52 16421.63 48 259
+before masking 312
+after masking 211
+scale index 108
+scale index 59
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.005455]
+photo flux  [ 0.0611768   0.22182509  0.53474802  0.94739783  1.          0.49998565
+  0.972934    0.92795786  0.88973389  0.86280827 -0.64736197 -0.49648126
+ -0.4340647  -0.29121158 -0.24342608 -0.15040551  1.064438    0.8341874
+  0.65625599]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 2.2159751511842933
+            Iterations: 11
+            Function evaluations: 52
+            Gradient evaluations: 11
+     fun: 2.2159751511842933
+     jac: array([ 0.0007695 , -0.02206564])
+ message: 'Optimization terminated successfully.'
+    nfev: 52
+     nit: 11
+    njev: 11
+  status: 0
+ success: True
+       x: array([2.2649842 , 0.44001165])
+15 38071
+intrinsic Av:0.4
+Galaxy age: 1.9952623149688828
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10168.31 17297.46
+masking region: 11417.06 16417.5 55 273
+before masking 312
+after masking 218
+scale index 112
+scale index 60
+scale index 49
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.09417586]
+photo flux  [ 0.07151277  0.23485817  0.51980966  0.94234274  1.          0.46913934
+  0.96503199  0.93555223  0.88763195  0.82461863 -2.97884671 -2.28456665
+ -1.99735584 -1.34001484 -1.12012907 -0.6920934   1.07054386  0.79995043
+  0.64921176]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 1.2527451464971504
+            Iterations: 8
+            Function evaluations: 36
+            Gradient evaluations: 8
+     fun: 1.2527451464971504
+     jac: array([-4.10526991e-05,  1.47849321e-04])
+ message: 'Optimization terminated successfully.'
+    nfev: 36
+     nit: 8
+    njev: 8
+  status: 0
+ success: True
+       x: array([1.25538765, 0.41566871])
+16 25411
+intrinsic Av:0.3
+Galaxy age: 1.584893192461111
+-------------------------------------Initial fit ---------------------------------------------------------------------------------------
+wavelength range: 10204.64 17553.39
+masking region: 11404.86 16438.24 51 264
+before masking 312
+after masking 213
+scale index 109
+scale index 59
+scale index 48
+Number of photometric points for rescaling: 2
+rescaling error 2 3 2
+0th coeff from polyfit after masking: [1.05998515]
+photo flux  [ 0.29082548  0.58967999  1.01560366  1.          0.90096094  0.99599594
+  1.00215758  0.66823351  0.57756505  0.50998531 -4.68806283 -3.59541562
+ -3.14340769 -2.1088946  -1.76284179 -1.08920588  0.73652618  0.48852764
+  0.3451661 ]
+Number of photo points and the positive ones: 13
+Photo SNR: 19 (array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 16, 17, 18]),)
+____________________M05_________________________ Optimization__________________________
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: 2.000281010875566
+            Iterations: 6
+            Function evaluations: 25
+            Gradient evaluations: 6
+     fun: 2.000281010875566
+     jac: array([6.25848770e-07, 1.01713681e+01])
+ message: 'Optimization terminated successfully.'
+    nfev: 25
+     nit: 6
+    njev: 6
+  status: 0
+ success: True
+       x: array([1.42319409e+00, 1.53129402e-16])

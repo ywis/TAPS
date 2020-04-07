@@ -317,8 +317,8 @@ columns = ['ID','region','field',
 chi_square_list = pd.DataFrame(index=df.index,columns=columns)#np.zeros([len(df), 31])
 chi_square_list_final = pd.DataFrame(index=df.index,columns=columns)
 
-weight1 = 1.0#0.25#0.0#1/1.864#/0.5
-weight2 = 1.0#weight1*5e-3#1.0#1/1228.53#/0.5
+weight1 = 1./2.575
+weight2 = 1./1.153
 
 ## Prepare the M05 models and store in the right place
 M05_model = []
@@ -1505,7 +1505,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200330'
+date='20200401'
 plot_dir = 'plot/'+date+'_cosmos/'
 
 tik = time.time()
@@ -1527,7 +1527,7 @@ for i in range(1,41):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in range(len(df)):
+for i in [80]:#range(len(df)):
 # for i in [x for x in range(len(df)-1,37,-1) if x != 61 and x !=70 and x!=75]:
     # 35: 11-27160
     # 9: 1-22611
@@ -1868,19 +1868,28 @@ for i in range(len(df)):
     grism_flux_array_for_scaling = np.array(grism_flux_list_for_scaling)
     grism_flux_err_array_for_scaling = np.array(grism_flux_err_list_for_scaling)
     grism_wave_array_for_scaling = np.array(grism_wave_list_for_scaling)
+    
+    # Masking out the negative photometric points
+    mask_non_neg_photo = np.where(photo_array_for_scaling>0)
+    photo_array_for_scaling = photo_array_for_scaling[mask_non_neg_photo]
+    photo_err_array_for_scaling = photo_err_array_for_scaling[mask_non_neg_photo]
+    grism_flux_array_for_scaling = grism_flux_array_for_scaling[mask_non_neg_photo]
+    grism_flux_err_array_for_scaling = grism_flux_err_array_for_scaling[mask_non_neg_photo]
+    grism_wave_array_for_scaling = grism_wave_array_for_scaling[mask_non_neg_photo]
+
     print('Number of photometric points for rescaling:',len(photo_array_for_scaling))
-    print(np.mean(photo_array_for_scaling/grism_flux_array_for_scaling))
     # coeff = np.mean(photo_array_for_scaling/grism_flux_array_for_scaling)
     # y = y*coeff
     rescaling_err = 1/np.sqrt(1./grism_flux_array_for_scaling*photo_err_array_for_scaling**2
                        + photo_array_for_scaling/grism_flux_array_for_scaling**2*grism_flux_err_array_for_scaling**2)
     ## 1st order
     number_of_poly = np.floor_divide(len(photo_array_for_scaling),3)-1
-    p= np.polyfit(grism_wave_list_for_scaling,\
+    p= np.polyfit(grism_wave_array_for_scaling,\
                            photo_array_for_scaling/grism_flux_array_for_scaling, number_of_poly,\
                            w=rescaling_err)
     y_fit = np.polyval(p,x)
     y = y_fit*y
+    print('0th coeff from polyfit after masking:',np.unique(y_fit))
 
     print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
 

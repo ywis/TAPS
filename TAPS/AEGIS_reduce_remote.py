@@ -38,9 +38,9 @@ print("{0} CPUs".format(ncpu))
 df_cat=pd.read_csv('/home/siqi/aegis_3dhst_v4.1.5_catalogs/aegis_3dhst.v4.1.5.zbest.rf', delim_whitespace=True,header=None,comment='#',index_col=False)
 df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153", "L154","nfilt154", "L155", "nfilt155", "L161", "nfilt161", "L162", "nfilt162", "L163", "nfilt163", "L156", "nfilt156", "L157", "nfilt157", "L158", "nfilt158", "L159", "nfilt159", "L160", "nfilt160", "L135", "nfilt135", "L136", "nfilt136", "L137", "nfilt137", "L138", "nfilt138", "L139", "nfilt139", "L270", "nfilt270", "L271", "nfilt271", "L272", "nfilt272", "L273", "nfilt273", "L274", "nfilt274","L275", "nfilt275"]
 
-
-df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200317_PSB.csv', sep=',')
-# df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200303_20200317_diff_PSB.csv', sep=',')
+# df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200303_PSB.csv', sep=',')
+# df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200317_PSB.csv', sep=',')
+df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200303_20200317_diff_PSB.csv', sep=',')
 df.columns=['detector','ID','region','filename','chip']
 
 df_photometry=pd.read_csv('/home/siqi/aegis_3dhst.v4.1.cats/Catalog/aegis_3dhst.v4.1.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
@@ -146,8 +146,8 @@ for i in range(32,46):
     M05_model_list.append(M05_model)
 print(len(M05_model_list))
 
-weight1 = 1.0#0.25#0.0#1/1.864#/0.5
-weight2 = 1.0#weight1*5e-3#1.0#1/1228.53#/0.5
+weight1 = 1./2.575
+weight2 = 1./1.153
 
 
 ## Prepare the M13 models and store in the right place
@@ -1440,7 +1440,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200330'
+date='20200401'
 plot_dir = 'plot/'+date+'_aegis/'
 
 ## Prepare the filter curves
@@ -1628,16 +1628,26 @@ for i in range(len(df)):
     grism_flux_array_for_scaling = np.array(grism_flux_list_for_scaling)
     grism_flux_err_array_for_scaling = np.array(grism_flux_err_list_for_scaling)
     grism_wave_array_for_scaling = np.array(grism_wave_list_for_scaling)
+    
+    # Masking out the negative photometric points
+    mask_non_neg_photo = np.where(photo_array_for_scaling>0)
+    photo_array_for_scaling = photo_array_for_scaling[mask_non_neg_photo]
+    photo_err_array_for_scaling = photo_err_array_for_scaling[mask_non_neg_photo]
+    grism_flux_array_for_scaling = grism_flux_array_for_scaling[mask_non_neg_photo]
+    grism_flux_err_array_for_scaling = grism_flux_err_array_for_scaling[mask_non_neg_photo]
+    grism_wave_array_for_scaling = grism_wave_array_for_scaling[mask_non_neg_photo]
+
     print('Number of photometric points for rescaling:',len(photo_array_for_scaling))
-    print('0th coeff',np.mean(photo_array_for_scaling/grism_flux_array_for_scaling))
 
     rescaling_err = 1/np.sqrt(1./grism_flux_array_for_scaling*photo_err_array_for_scaling**2
                        + photo_array_for_scaling/grism_flux_array_for_scaling**2*grism_flux_err_array_for_scaling**2)
-    p= np.polyfit(grism_wave_list_for_scaling,\
+    p= np.polyfit(grism_wave_array_for_scaling,\
                            photo_array_for_scaling/grism_flux_array_for_scaling, 0,\
                            w=rescaling_err)
     y_fit = np.polyval(p,x)
     y = y_fit*y
+    print('0th coeff from polyfit after masking:',np.unique(y_fit))
+
 
     print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
 
