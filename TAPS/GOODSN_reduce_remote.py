@@ -601,9 +601,10 @@ def lg_minimize_age_AV_vector_weighted(X):
         else:
             lnprobval = -np.inf
     except ValueError: # NaN value case
-       lnprobval = -np.inf
-       print('valueError',lnprobval)
-    # print('lnprob:',lnprobval, x2, x2_photo)
+        lnprobval = -np.inf
+        print('valueError',lnprobval)
+    if np.isinf(lnprobval):
+        print('lnprob:',lnprobval, x2, x2_photo,galaxy_age,intrinsic_Av)
     return lnprobval
 def minimize_age_AV_vector_weighted_return_flux(X):
     galaxy_age= X[0]
@@ -700,8 +701,8 @@ def minimize_age_AV_vector_weighted_return_flux(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('valueError', x2_tot)
+        x2_tot = np.inf
+        print('valueError', x2_tot)
     # print('model wave range', model1[0,0], model1[0,-1])
 
     return x2_tot, model1[0,:], smooth_Flux_Ma_1Gyr_new
@@ -800,9 +801,9 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
             x2 = np.inf
             x2_photo = np.inf
     except ValueError: # NaN value case
-       x2 = np.inf
-       x2_photo = np.inf
-       print('ValueError', x2)
+        x2 = np.inf
+        x2_photo = np.inf
+        print('ValueError', x2)
     return x2, x2_photo
 
 def minimize_age_AV_vector_weighted_M13(X):
@@ -912,8 +913,8 @@ def minimize_age_AV_vector_weighted_M13(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('ValueError', x2_tot)
+        x2_tot = np.inf
+        print('ValueError', x2_tot)
     return x2_tot
 def lg_minimize_age_AV_vector_weighted_M13(X):
     tik = time.clock()
@@ -1022,8 +1023,8 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         else:
             lnprobval = -np.inf
     except ValueError: # NaN value case
-       lnprobval = -np.inf
-       print('valueError',lnprobval,x2, x2_photo)
+        lnprobval = -np.inf
+        print('valueError',lnprobval,x2, x2_photo)
     # print('lnprob:',lnprobval)
     return lnprobval
 def minimize_age_AV_vector_weighted_M13_return_flux(X):
@@ -1119,8 +1120,8 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('valueError', x2_tot)
+        x2_tot = np.inf
+        print('valueError', x2_tot)
     # print('model wave range', model2[0,0], model2[0,-1], split_galaxy_age_string )
     # print('model wave separately', M13_model_list[53][0,0],M13_model_list[53][0,-1],len(M13_model_list[53][0,:]),len(M13_model_list[54][0,:]),M13_model_list[54][0,0],M13_model_list[53][0,-1])
     # print('model test', model_test[0,0], model_test[0,-1])
@@ -1220,11 +1221,10 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
             x2 = np.inf
             x2_photo = np.inf
     except ValueError: # NaN value case
-       x2 = np.inf
-       x2_photo = np.inf
-       print('ValueError', x2)
+        x2 = np.inf
+        x2_photo = np.inf
+        print('ValueError', x2)
     return x2, x2_photo
-
 def minimize_age_AV_vector_weighted_BC03(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1739,7 +1739,7 @@ for i in range(len(df)):
     model_wave,model_flux  =minimize_age_AV_vector_weighted_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1760,20 +1760,16 @@ for i in range(len(df)):
             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
             index0 = index0+1
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    index0 = 0
     for i in range(len(wave_list)):
         try:
             index = find_nearest(model_wave, wave_list[i])
         except:
             pass
         plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-        index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    plt.ylim([0.9,1.1])
-    plt.ylim([0.7,1.45])
     plt.tick_params(axis='both', which='major', labelsize=20)
     plt.tick_params(axis='both', which='minor', labelsize=20)
     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
@@ -1855,7 +1851,7 @@ for i in range(len(df)):
             model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
             plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1876,15 +1872,12 @@ for i in range(len(df)):
                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
             plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-
-            index0 = 0
             for i in range(len(wave_list)):
                 try:
                     index = find_nearest(model_wave, wave_list[i])
                 except:
                     pass
                 plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -1968,7 +1961,7 @@ for i in range(len(df)):
                 model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
                 plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -1989,14 +1982,12 @@ for i in range(len(df)):
                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                         index0 = index0+1
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                index0 = 0
                 for i in range(len(wave_list)):
                     try:
                         index = find_nearest(model_wave, wave_list[i])
                     except:
                         pass
                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                    index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2047,7 +2038,7 @@ for i in range(len(df)):
     model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
     plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2068,14 +2059,12 @@ for i in range(len(df)):
             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
             index0 = index0+1
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    index0 = 0
     for i in range(len(wave_list)):
         try:
             index = find_nearest(model_wave, wave_list[i])
         except:
             pass
         plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-        index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2164,7 +2153,7 @@ for i in range(len(df)):
             model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
             plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2185,14 +2174,12 @@ for i in range(len(df)):
                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
             plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-            index0 = 0
             for i in range(len(wave_list)):
                 try:
                     index = find_nearest(model_wave, wave_list[i])
                 except:
                     pass
                 plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2279,7 +2266,7 @@ for i in range(len(df)):
                 model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
                 plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2300,14 +2287,12 @@ for i in range(len(df)):
                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                         index0 = index0+1
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                index0 = 0
                 for i in range(len(wave_list)):
                     try:
                         index = find_nearest(model_wave, wave_list[i])
                     except:
                         pass
                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                    index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2356,7 +2341,7 @@ for i in range(len(df)):
     model_wave = BC03_wave_list_num
     model_flux = BC03_flux_attenuated   
     plt.xlim([2.5e3,1.9e4])
-    plt.ylim([0.05, 1.1])
+    plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2377,14 +2362,12 @@ for i in range(len(df)):
             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
             index0 = index0+1
     plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    index0 = 0
     for i in range(len(wave_list)):
         try:
             index = find_nearest(model_wave, wave_list[i])
         except:
             pass
         plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-        index0 = index0+1
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
@@ -2469,7 +2452,7 @@ for i in range(len(df)):
             model_wave = BC03_wave_list_num
             model_flux = BC03_flux_attenuated            
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.1])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2490,14 +2473,12 @@ for i in range(len(df)):
                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                     index0 = index0+1
             plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-            index0 = 0
             for i in range(len(wave_list)):
                 try:
                     index = find_nearest(model_wave, wave_list[i])
                 except:
                     pass
                 plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                index0 = index0+1
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
@@ -2581,7 +2562,7 @@ for i in range(len(df)):
                 model_wave = BC03_wave_list_num
                 model_flux = BC03_flux_attenuated            
                 plt.xlim([2.5e3,1.9e4])
-                plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
+                plt.ylim([0.05, 1.2])
                 plt.semilogx()
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2602,14 +2583,12 @@ for i in range(len(df)):
                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
                         index0 = index0+1
                 plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                index0 = 0
                 for i in range(len(wave_list)):
                     try:
                         index = find_nearest(model_wave, wave_list[i])
                     except:
                         pass
                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-                    index0 = index0+1
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')

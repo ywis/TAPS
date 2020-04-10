@@ -393,7 +393,6 @@ def OneD_index(x, y):
     band1 = band1.iloc[np.where(band1_M05<=1.07e4)[0]]
     band1_index = band1.index
     band1_flux = Flux.loc[band1_index]
-
 def binning_spec_keep_shape(wave,flux,bin_size):
     wave_binned = wave
     flux_binned = np.zeros(len(wave))
@@ -494,46 +493,6 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
 
 
     return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band, photometric_flux_err_mod/norm_band        
-
-def model_identification(chi2_array,rtol=0.1):
-    index = find_nearest(chi2_array,1)    
-    model = np.mod(index,3)+1
-    chi2_array_comp = abs(chi2_array-1)
-    chi2_array_comp_idx = np.argsort(chi2_array_comp)[:2]
-    if np.mod(chi2_array_comp_idx[0],3)==np.mod(chi2_array_comp_idx[1],3):
-        chi2_array_comp_idx = np.argsort(chi2_array_comp)[1:3]
-    chi2_min2_array = chi2_array[chi2_array_comp_idx]
-    if np.isclose(chi2_min2_array[0],chi2_min2_array[1],rtol=rtol):
-        model = 0
-    return model
-def model_from_chi2(df_opt):
-    for i in range(len(df_opt)):
-        chi2_array=df_opt.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt',\
-                                 'x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
-        chi2_spec_array=df_opt.loc[i,['x2_spectra_M05_opt','x2_spectra_M13_opt','x2_spectra_BC_opt',\
-                                      'x2_spectra_M05_MCMC50','x2_spectra_M13_MCMC50','x2_spectra_BC_MCMC50']].values
-        chi2_phot_array=df_opt.loc[i,['x2_photo_M05_opt','x2_photo_M13_opt','x2_photo_BC_opt',\
-                                      'x2_photo_M05_MCMC50','x2_photo_M13_MCMC50','x2_photo_BC_MCMC50']].values
-        age_array=df_opt.loc[i,['M05_age_opt','M13_age_opt','BC_age_opt',\
-                                'M05_age_MCMC50','M13_age_MCMC50','BC_age_MCMC50']].values
-        age_std_array=df_opt.loc[i,['M05_age_std','M13_age_std','BC_age_std',\
-                                    'M05_age_std','M13_age_std','BC_age_std']].values
-        AV_array=df_opt.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt',\
-                               'M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
-        AV_std_array=df_opt.loc[i,['M05_AV_std','M13_AV_std','BC_AV_std',\
-                                   'M05_AV_std','M13_AV_std','BC_AV_std']].values        
-        index = find_nearest(chi2_array,0)    
-        df_opt.loc[i,'model'] = np.mod(index,3)+1
-        df_opt.loc[i,'model_new']=model_identification(chi2_array)
-        df_opt.loc[i,'best_chi2']=chi2_array[index]
-        df_opt.loc[i,'best_chi2_spec']=chi2_spec_array[index]
-        df_opt.loc[i,'best_chi2_phot']=chi2_phot_array[index]
-        df_opt.loc[i,'age_opt']=age_array[index]
-        df_opt.loc[i,'age_opt_std']=age_std_array[index]
-        df_opt.loc[i,'AV_opt']=AV_array[index]
-        df_opt.loc[i,'AV_opt_std']=AV_std_array[index]
-    return df_opt
-
 def binning_spec_keep_shape_x(wave,flux,flux_err,bin_size):
     wave_binned = wave
     flux_binned = np.zeros(len(wave))
@@ -740,9 +699,10 @@ def lg_minimize_age_AV_vector_weighted(X):
         else:
             lnprobval = -np.inf
     except ValueError: # NaN value case
-       lnprobval = -np.inf
-       print('valueError',lnprobval)
-    # print('lnprob:',lnprobval, x2, x2_photo)
+        lnprobval = -np.inf
+        print('valueError',lnprobval)
+    if np.isinf(lnprobval):
+        print('lnprob:',lnprobval, x2, x2_photo,galaxy_age,intrinsic_Av)
     return lnprobval
 def minimize_age_AV_vector_weighted_return_flux(X):
     galaxy_age= X[0]
@@ -839,8 +799,8 @@ def minimize_age_AV_vector_weighted_return_flux(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('valueError', x2_tot)
+        x2_tot = np.inf
+        print('valueError', x2_tot)
     # print('model wave range', model1[0,0], model1[0,-1])
 
     return x2_tot, model1[0,:], smooth_Flux_Ma_1Gyr_new
@@ -939,9 +899,9 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
             x2 = np.inf
             x2_photo = np.inf
     except ValueError: # NaN value case
-       x2 = np.inf
-       x2_photo = np.inf
-       print('ValueError', x2)
+        x2 = np.inf
+        x2_photo = np.inf
+        print('ValueError', x2)
     return x2, x2_photo
 
 def minimize_age_AV_vector_weighted_M13(X):
@@ -1051,8 +1011,8 @@ def minimize_age_AV_vector_weighted_M13(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('ValueError', x2_tot)
+        x2_tot = np.inf
+        print('ValueError', x2_tot)
     return x2_tot
 def lg_minimize_age_AV_vector_weighted_M13(X):
     tik = time.clock()
@@ -1161,8 +1121,8 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         else:
             lnprobval = -np.inf
     except ValueError: # NaN value case
-       lnprobval = -np.inf
-       print('valueError',lnprobval,x2, x2_photo)
+        lnprobval = -np.inf
+        print('valueError',lnprobval,x2, x2_photo)
     # print('lnprob:',lnprobval)
     return lnprobval
 def minimize_age_AV_vector_weighted_M13_return_flux(X):
@@ -1258,8 +1218,8 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
         else:
             x2_tot = np.inf
     except ValueError: # NaN value case
-       x2_tot = np.inf
-       print('valueError', x2_tot)
+        x2_tot = np.inf
+        print('valueError', x2_tot)
     # print('model wave range', model2[0,0], model2[0,-1], split_galaxy_age_string )
     # print('model wave separately', M13_model_list[53][0,0],M13_model_list[53][0,-1],len(M13_model_list[53][0,:]),len(M13_model_list[54][0,:]),M13_model_list[54][0,0],M13_model_list[53][0,-1])
     # print('model test', model_test[0,0], model_test[0,-1])
@@ -1359,9 +1319,9 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
             x2 = np.inf
             x2_photo = np.inf
     except ValueError: # NaN value case
-       x2 = np.inf
-       x2_photo = np.inf
-       print('ValueError', x2)
+        x2 = np.inf
+        x2_photo = np.inf
+        print('ValueError', x2)
     return x2, x2_photo
 
 def minimize_age_AV_vector_weighted_BC03(X):
@@ -1872,944 +1832,924 @@ for i in range(len(df)):
     chi_square_list.loc[row,'x2_spectra_M05_opt'] = x2_spec
     chi_square_list.loc[row,'x2_photo_M05_opt'] = x2_phot
     
-    # #--- Plot
-    # X = sol.x
-    # n = len(x)
-    # print(X)
-    # fig1 = plt.figure(figsize=(20,10))
-    # frame1 = fig1.add_axes((.1,.35,.8,.6))
-    # plt.step(x, y, color='r',lw=3)
-    # plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    # plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
+    #--- Plot
+    X = sol.x
+    n = len(x)
+    print(X)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
 
-    # model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+    model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
 
-    # plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
-    # plt.xlim([2.5e3,1.9e4])
-    # plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-    # plt.semilogx()
-    # plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-    # plt.tick_params(axis='both', which='major', labelsize=20)
-    # plt.legend(loc='upper right',fontsize=24)
-    # plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    # plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
-    # frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    # relative_spectra = np.zeros([1,n])
-    # relative_spectra_err = np.zeros([1,n])
-    # relative_sigma = np.zeros([1,n])
-    # index0 = 0
-    # for wave in x:
-    #     if y[index0]>0.25 and y[index0]<1.35:
-    #         index = find_nearest(model_wave, wave);#print index
-    #         relative_spectra[0, index0] = y[index0]/model_flux[index]
-    #         relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-    #         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-    #         index0 = index0+1
-    # plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-    # index0 = 0
-    # for i in range(len(wave_list)):
-    #     try:
-    #         index = find_nearest(model_wave, wave_list[i])
-    #     except:
-    #         pass
-    #     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-    #     index0 = index0+1
-    # plt.xlim([2.5e3,1.9e4])
-    # plt.semilogx()
-    # plt.tick_params(axis='both', which='major', labelsize=20)
-    # plt.tick_params(axis='both', which='minor', labelsize=20)
-    # plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    # plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    # plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-    # plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-    # plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-    # plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-    # plt.ylim([-5,5])
-    # plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-    # plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    # figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-    # plt.savefig(figname)
-    # plt.clf()
-    # with Pool() as pool:
-    #     ndim, nwalkers = 2, 10
-    #     tik = time.clock()
-    #     p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-    #     sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
-    #     sampler.run_mcmc(p0, nsteps, progress=True)
-    #     samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-    #     samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
-    #              (samples[:,0] < age_prior_optimized*2.0) &\
-    #              (samples[:,1] < AV_prior_optimized*3.0)]
-    #     tok = time.clock()
-    #     multi_time = tok-tik
-    #     print('Time to run M05 MCMC:'+str(tok-tik)) 
-    #     print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-    # try:     
-    #     if samples.size > 1e3:
-    #         value2 = np.percentile(samples, 50, axis=0)
-    #         X = np.percentile(samples, 50, axis=0)
-    #         [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
-    #         plt.figure(figsize=(32,32),dpi=100)
-    #         fig = corner.corner(samples,
-    #              labels=["age(Gyr)", r"$\rm A_V$"],
-    #              truths=[age_prior_optimized, AV_prior_optimized],
-    #              level=(1-np.exp(-0.5),),
-    #              show_titles=True,title_kwargs={'fontsize':12},
-    #                             quantiles=(0.16,0.5, 0.84))
-    #         axes = np.array(fig.axes).reshape((ndim, ndim))
-    #         for i in range(ndim):
-    #             ax = axes[i, i]
-    #             ax.axvline(X[i], color="g")
-    #             ax.axvline(value2[i],color='r')
-    #         # Loop over the histograms
-    #         for yi in range(ndim):
-    #             for xi in range(yi):
-    #                 ax = axes[yi, xi]
-    #                 ax.axvline(X[xi], color="g")
-    #                 ax.axvline(value2[xi], color="r")
-    #                 ax.axhline(X[yi], color="g")
-    #                 ax.axhline(value2[yi], color="r")
-    #                 ax.plot(X[xi], X[yi], "sg")
-    #                 ax.plot(value2[xi],value2[yi],'sr')
-    #         plt.rcParams.update({'font.size': 12})
-    #         figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-    #         fig.savefig(figname)
-    #         fig.clf()
-    #         print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
+                 (samples[:,0] < age_prior_optimized*2.0) &\
+                 (samples[:,1] < AV_prior_optimized*3.0)]
+        tok = time.clock()
+        multi_time = tok-tik
+        print('Time to run M05 MCMC:'+str(tok-tik)) 
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+    try:     
+        if samples.size > 1e3:
+            value2 = np.percentile(samples, 50, axis=0)
+            X = np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                 labels=["age(Gyr)", r"$\rm A_V$"],
+                 truths=[age_prior_optimized, AV_prior_optimized],
+                 level=(1-np.exp(-0.5),),
+                 show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            fig.savefig(figname)
+            fig.clf()
+            print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
             
-    #         #--- Plot
-    #         X = np.percentile(samples, 50, axis=0)
-    #         x2_optimized = minimize_age_AV_vector_weighted(X)
-    #         x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
-    #         chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-    #         chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-    #         chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
-    #         chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
-    #         chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
-    #         chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-    #         chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
+            chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-    #         n = len(x)
-    #         fig1 = plt.figure(figsize=(20,10))
-    #         frame1 = fig1.add_axes((.1,.35,.8,.6))
+            n = len(x)
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
 
-    #         plt.step(x, y, color='r',lw=3)                
-    #         plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    #         plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+            plt.step(x, y, color='r',lw=3)                
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
 
-    #         model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+            model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
 
-    #         plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+            plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
 
-    #         plt.xlim([2.5e3,1.9e4])
-    #         plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-    #         plt.semilogx()
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])
+            plt.semilogx()
 
-    #         plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-    #         plt.tick_params(axis='both', which='major', labelsize=22)
-    #         plt.legend(loc='upper right',fontsize=24)
-    #         plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    #         plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    #         frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    #         relative_spectra = np.zeros([1,n])
-    #         relative_spectra_err = np.zeros([1,n])
-    #         relative_sigma = np.zeros([1,n])
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
 
-    #         index0 = 0
-    #         for wave in x:
-    #             if y[index0]>0.25 and y[index0]<1.35:
-    #                 index = find_nearest(model_wave, wave);#print index
-    #                 relative_spectra[0, index0] = y[index0]/model_flux[index]
-    #                 relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-    #                 relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-    #                 index0 = index0+1
-    #         plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-
-    #         index0 = 0
-    #         for i in range(len(wave_list)):
-    #             try:
-    #                 index = find_nearest(model_wave, wave_list[i])
-    #             except:
-    #                 pass
-    #             plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-    #             index0 = index0+1
-    #         plt.xlim([2.5e3,1.9e4])
-    #         plt.semilogx()
-    #         plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    #         plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    #         plt.tick_params(axis='both', which='major', labelsize=20)
-    #         plt.tick_params(axis='both', which='minor', labelsize=20)
-    #         plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-    #         plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-    #         plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-    #         plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-    #         plt.ylim([-5,5])
-    #         plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-    #         plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    #         figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-    #         plt.savefig(figname)
-    #         plt.clf()
-    #     else:
-    #         with Pool() as pool:
-    #             ndim, nwalkers = 2, 10
-    #             tik = time.clock()
-    #             p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-    #             sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
-    #             sampler.run_mcmc(p0, nsteps*2, progress=True)
-    #             samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-    #             samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
-    #                      (samples[:,0] < age_prior_optimized*2.0) &\
-    #                      (samples[:,1] < AV_prior_optimized*3.0)]
-    #             tok = time.clock()
-    #             multi_time = tok-tik
-    #             print('Time to run M05 MCMC:'+str(tok-tik)) 
-    #             print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-    #         if samples.size > 1e3:
-    #             value2 = np.percentile(samples, 50, axis=0)
-    #             X = np.percentile(samples, 50, axis=0)
-    #             [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
-    #             plt.figure(figsize=(32,32),dpi=100)
-    #             fig = corner.corner(samples,
-    #                  labels=["age(Gyr)", r"$\rm A_V$"],
-    #                  truths=[age_prior_optimized, AV_prior_optimized],
-    #                  level=(1-np.exp(-0.5),),
-    #                  show_titles=True,title_kwargs={'fontsize':12},
-    #                                 quantiles=(0.16,0.5, 0.84))
-    #             axes = np.array(fig.axes).reshape((ndim, ndim))
-    #             for i in range(ndim):
-    #                 ax = axes[i, i]
-    #                 ax.axvline(X[i], color="g")
-    #                 ax.axvline(value2[i],color='r')
-    #             # Loop over the histograms
-    #             for yi in range(ndim):
-    #                 for xi in range(yi):
-    #                     ax = axes[yi, xi]
-    #                     ax.axvline(X[xi], color="g")
-    #                     ax.axvline(value2[xi], color="r")
-    #                     ax.axhline(X[yi], color="g")
-    #                     ax.axhline(value2[yi], color="r")
-    #                     ax.plot(X[xi], X[yi], "sg")
-    #                     ax.plot(value2[xi],value2[yi],'sr')
-    #             plt.rcParams.update({'font.size': 12})
-    #             figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-    #             plt.savefig(figname)
-    #             fig.clf()
-    #             print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            plt.savefig(figname)
+            plt.clf()
+        else:
+            with Pool() as pool:
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
+                         (samples[:,0] < age_prior_optimized*2.0) &\
+                         (samples[:,1] < AV_prior_optimized*3.0)]
+                tok = time.clock()
+                multi_time = tok-tik
+                print('Time to run M05 MCMC:'+str(tok-tik)) 
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+            if samples.size > 1e3:
+                value2 = np.percentile(samples, 50, axis=0)
+                X = np.percentile(samples, 50, axis=0)
+                [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                     labels=["age(Gyr)", r"$\rm A_V$"],
+                     truths=[age_prior_optimized, AV_prior_optimized],
+                     level=(1-np.exp(-0.5),),
+                     show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                plt.savefig(figname)
+                fig.clf()
+                print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
                 
-    #             #--- Plot
-    #             X = np.percentile(samples, 50, axis=0)
-    #             x2_optimized = minimize_age_AV_vector_weighted(X)
-    #             x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
-    #             chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-    #             chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-    #             chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
-    #             chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
-    #             chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
-    #             chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-    #             chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
+                chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-    #             n = len(x)
-    #             fig1 = plt.figure(figsize=(20,10))
-    #             frame1 = fig1.add_axes((.1,.35,.8,.6))
+                n = len(x)
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
 
-    #             plt.step(x, y, color='r',lw=3)                
-    #             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    #             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
+                plt.step(x, y, color='r',lw=3)                
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
 
-    #             model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+                model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
 
-    #             plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+                plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
 
-    #             plt.xlim([2.5e3,1.9e4])
-    #             plt.ylim([0.05, 1.1])
-    #             plt.semilogx()
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])
+                plt.semilogx()
 
-    #             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-    #             plt.tick_params(axis='both', which='major', labelsize=22)
-    #             plt.legend(loc='upper right',fontsize=24)
-    #             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    #             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    #             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    #             relative_spectra = np.zeros([1,n])
-    #             relative_spectra_err = np.zeros([1,n])
-    #             relative_sigma = np.zeros([1,n])
-    #             index0 = 0
-    #             for wave in x:
-    #                 if y[index0]>0.25 and y[index0]<1.35:
-    #                     index = find_nearest(model_wave, wave);#print index
-    #                     relative_spectra[0, index0] = y[index0]/model_flux[index]
-    #                     relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-    #                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-    #                     index0 = index0+1
-    #             plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-    #             index0 = 0
-    #             for i in range(len(wave_list)):
-    #                 try:
-    #                     index = find_nearest(model_wave, wave_list[i])
-    #                 except:
-    #                     pass
-    #                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-    #                 index0 = index0+1
-    #             plt.xlim([2.5e3,1.9e4])
-    #             plt.semilogx()
-    #             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    #             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    #             plt.tick_params(axis='both', which='major', labelsize=20)
-    #             plt.tick_params(axis='both', which='minor', labelsize=20)
-    #             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-    #             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-    #             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-    #             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-    #             plt.ylim([-5,5])
-    #             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-    #             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    #             figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-    #             plt.savefig(figname)
-    #             plt.clf()
-    # except:
-    #     pass
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                relative_sigma = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                    except:
+                        pass
+                        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                plt.savefig(figname)
+                plt.clf()
+    except:
+        pass
 
-# # Test with the new M13 models
-#     print('____________________M13_________________________ Optimization__________________________')
-#     bnds = ((0.0, 13.0), (0.0, 4.0))
-#     X = np.array([galaxy_age,intrinsic_Av])
-#     try:
-#         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
-#         print('Optimized M13 weighted reduced chisqure result:', sol_M13)
-#     except:
-#         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds)#, method='SLSQP')#, options = {'disp': True})
-#         print('Optimized M13 weighted reduced chisqure result:', sol_M13)
-#     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
-#     X = sol_M13.x
-#     x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#     x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#     chi_square_list.loc[row,'M13_age_opt'] = X[0]#"{0:.2f}".format(X[0])
-#     chi_square_list.loc[row,'M13_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
-#     chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
-#     chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
-#     chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
+# Test with the new M13 models
+    print('____________________M13_________________________ Optimization__________________________')
+    bnds = ((0.0, 13.0), (0.0, 4.0))
+    X = np.array([galaxy_age,intrinsic_Av])
+    try:
+        sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
+        print('Optimized M13 weighted reduced chisqure result:', sol_M13)
+    except:
+        sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds)#, method='SLSQP')#, options = {'disp': True})
+        print('Optimized M13 weighted reduced chisqure result:', sol_M13)
+    [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
+    X = sol_M13.x
+    x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+    chi_square_list.loc[row,'M13_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'M13_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
     
-#     #--- Plot
-#     X = sol_M13.x
-#     n = len(x)
-#     fig1 = plt.figure(figsize=(20,10))
-#     frame1 = fig1.add_axes((.1,.35,.8,.6))
-#     plt.step(x, y, color='r',lw=3)
-#     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#     model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-#     plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-#     plt.semilogx()
-#     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#     plt.tick_params(axis='both', which='major', labelsize=22)
-#     plt.legend(loc='upper right',fontsize=24)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    #--- Plot
+    X = sol_M13.x
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+    model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+    plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
-#     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#     relative_spectra = np.zeros([1,n])
-#     relative_spectra_err = np.zeros([1,n])
-#     relative_sigma = np.zeros([1,n])
-#     index0 = 0
-#     for wave in x:
-#         if y[index0]>0.25 and y[index0]<1.35:
-#             index = find_nearest(model_wave, wave);#print index
-#             relative_spectra[0, index0] = y[index0]/model_flux[index]
-#             relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#             index0 = index0+1
-#     plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-#     index0 = 0
-#     for i in range(len(wave_list)):
-#         try:
-#             index = find_nearest(model_wave, wave_list[i])
-#         except:
-#             pass
-#         plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#         index0 = index0+1
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.semilogx()
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#     plt.tick_params(axis='both', which='major', labelsize=20)
-#     plt.tick_params(axis='both', which='minor', labelsize=20)
-#     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.ylim([-5,5])
-#     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#     figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_M13_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#     plt.savefig(figname)
-#     plt.clf()
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_M13_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    plt.savefig(figname)
+    plt.clf()
 
-#     with Pool() as pool:
-#         ndim, nwalkers = 2, 10
-#         tik = time.clock()
-#         p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-#         sampler.run_mcmc(p0, nsteps, progress=True)
-#         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#         samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
-#         tok = time.clock()
-#         multi_time = tok-tik
-#         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#     print('Time to run M13 MCMC:'+str(tok-tik))
-#     try:
-#         if samples.size > 1e3 :
-#             value2=np.percentile(samples, 50, axis=0)
-#             X = np.percentile(samples, 50, axis=0)
-#             [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
-#             plt.figure(figsize=(32,32),dpi=100)
-#             fig = corner.corner(samples,
-#                  labels=["age(Gyr)", r"$\rm A_V$"],
-#                  truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
-#                  levels=(1-np.exp(-0.5),),
-#                  show_titles=True,title_kwargs={'fontsize':12},
-#                                 quantiles=(0.16,0.5, 0.84))
-#             axes = np.array(fig.axes).reshape((ndim, ndim))
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#             # Loop over the histograms
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#                 ax.axvline(value2[i],color='r')
-#             # Loop over the histograms
-#             for yi in range(ndim):
-#                 for xi in range(yi):
-#                     ax = axes[yi, xi]
-#                     ax.axvline(X[xi], color="g")
-#                     ax.axvline(value2[xi], color="r")
-#                     ax.axhline(X[yi], color="g")
-#                     ax.axhline(value2[yi], color="r")
-#                     ax.plot(X[xi], X[yi], "sg")
-#                     ax.plot(value2[xi],value2[yi],'sr')
-#             plt.rcParams.update({'font.size': 12})
-#             figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#             fig.savefig(figname)
-#             fig.clf()
-#             print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
+        tok = time.clock()
+        multi_time = tok-tik
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+    print('Time to run M13 MCMC:'+str(tok-tik))
+    try:
+        if samples.size > 1e3 :
+            value2=np.percentile(samples, 50, axis=0)
+            X = np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                 labels=["age(Gyr)", r"$\rm A_V$"],
+                 truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                 levels=(1-np.exp(-0.5),),
+                 show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+            # Loop over the histograms
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            fig.savefig(figname)
+            fig.clf()
+            print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
             
-#             #--- Plot
-#             X = np.percentile(samples, 50, axis=0)
-#             x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#             x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#             chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#             chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#             chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
-#             chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
-#             chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
-#             chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#             chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+            chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-#             n = len(x)
-#             fig1 = plt.figure(figsize=(20,10))
-#             frame1 = fig1.add_axes((.1,.35,.8,.6))
-#             plt.step(x, y, color='r',lw=3)
-#             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#             model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-#             plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-#             plt.semilogx()
-#             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#             plt.tick_params(axis='both', which='major', labelsize=22)
-#             plt.legend(loc='upper right',fontsize=24)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            n = len(x)
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
+            plt.step(x, y, color='r',lw=3)
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+            model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+            plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])
+            plt.semilogx()
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
-#             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#             relative_spectra = np.zeros([1,n])
-#             relative_spectra_err = np.zeros([1,n])
-#             relative_sigma = np.zeros([1,n])
-#             index0 = 0
-#             for wave in x:
-#                 if y[index0]>0.25 and y[index0]<1.35:
-#                     index = find_nearest(model_wave, wave);#print index
-#                     relative_spectra[0, index0] = y[index0]/model_flux[index]
-#                     relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#                     index0 = index0+1
-#             plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-#             index0 = 0
-#             for i in range(len(wave_list)):
-#                 try:
-#                     index = find_nearest(model_wave, wave_list[i])
-#                 except:
-#                     pass
-#                 plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#                 index0 = index0+1
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.semilogx()
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#             plt.tick_params(axis='both', which='major', labelsize=20)
-#             plt.tick_params(axis='both', which='minor', labelsize=20)
-#             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.ylim([-5,5])
-#             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#             figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#             plt.savefig(figname)
-#             plt.clf()
-#         else:
-#             with Pool() as pool:
-#                 ndim, nwalkers = 2, 10
-#                 tik = time.clock()
-#                 p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-#                 sampler.run_mcmc(p0, nsteps*2, progress=True)
-#                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#                 samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
-#                 tok = time.clock()
-#                 multi_time = tok-tik
-#                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#             if samples.size > 1e3 :
-#                 value2=np.percentile(samples, 50, axis=0)
-#                 X = np.percentile(samples, 50, axis=0)
-#                 [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
-#                 plt.figure(figsize=(32,32),dpi=100)
-#                 fig = corner.corner(samples,
-#                      labels=["age(Gyr)", r"$\rm A_V$"],
-#                      truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
-#                      levels=(1-np.exp(-0.5),),
-#                      show_titles=True,title_kwargs={'fontsize':12},
-#                                     quantiles=(0.16,0.5, 0.84))
-#                 axes = np.array(fig.axes).reshape((ndim, ndim))
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                 # Loop over the histograms
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                     ax.axvline(value2[i],color='r')
-#                 # Loop over the histograms
-#                 for yi in range(ndim):
-#                     for xi in range(yi):
-#                         ax = axes[yi, xi]
-#                         ax.axvline(X[xi], color="g")
-#                         ax.axvline(value2[xi], color="r")
-#                         ax.axhline(X[yi], color="g")
-#                         ax.axhline(value2[yi], color="r")
-#                         ax.plot(X[xi], X[yi], "sg")
-#                         ax.plot(value2[xi],value2[yi],'sr')
-#                 plt.rcParams.update({'font.size': 12})
-#                 figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#                 fig.savefig(figname)
-#                 fig.clf()
-#                 print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            plt.savefig(figname)
+            plt.clf()
+        else:
+            with Pool() as pool:
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
+                tok = time.clock()
+                multi_time = tok-tik
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+            if samples.size > 1e3 :
+                value2=np.percentile(samples, 50, axis=0)
+                X = np.percentile(samples, 50, axis=0)
+                [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                     labels=["age(Gyr)", r"$\rm A_V$"],
+                     truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                     levels=(1-np.exp(-0.5),),
+                     show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                # Loop over the histograms
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                fig.savefig(figname)
+                fig.clf()
+                print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
                 
-#                 #--- Plot
-#                 X = np.percentile(samples, 50, axis=0)
-#                 x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#                 x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#                 chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#                 chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#                 chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
-#                 chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
-#                 chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
-#                 chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#                 chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1] #"{0:.2f}".format(np.std(samples, axis=0)[1])
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted_M13(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
+                chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1] #"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-#                 n = len(x)
-#                 fig1 = plt.figure(figsize=(20,10))
-#                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-#                 plt.step(x, y, color='r',lw=3)
-#                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+                n = len(x)
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
+                plt.step(x, y, color='r',lw=3)
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 
-#                 model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+                model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
 
-#                 plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.ylim([0.05, 1.1])#
-#                 plt.semilogx()
-#                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#                 plt.tick_params(axis='both', which='major', labelsize=22)
-#                 plt.legend(loc='upper right',fontsize=24)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])
+                plt.semilogx()
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
-#                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#                 relative_spectra = np.zeros([1,n])
-#                 relative_spectra_err = np.zeros([1,n])
-#                 relative_sigma = np.zeros([1,n])
-#                 index0 = 0
-#                 for wave in x:
-#                     if y[index0]>0.25 and y[index0]<1.35:
-#                         index = find_nearest(model_wave, wave);#print index
-#                         relative_spectra[0, index0] = y[index0]/model_flux[index]
-#                         relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#                         index0 = index0+1
-#                 plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                relative_sigma = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                    except:
+                        pass
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                plt.savefig(figname)
+                plt.clf()
+    except:
+        pass
 
-#                 index0 = 0
-#                 for i in range(len(wave_list)):
-#                     try:
-#                         index = find_nearest(model_wave, wave_list[i])
-#                     except:
-#                         pass
-#                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#                     index0 = index0+1
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.semilogx()
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#                 plt.tick_params(axis='both', which='major', labelsize=20)
-#                 plt.tick_params(axis='both', which='minor', labelsize=20)
-#                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.ylim([-5,5])
-#                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#                 figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#                 plt.savefig(figname)
-#                 plt.clf()
-#     except:
-#         pass
+# Test with the new BC03 models
 
-# # Test with the new BC03 models
+    print('____________________BC03_________________________ Optimization__________________________')
+    X = np.array([galaxy_age,intrinsic_Av])
+    bnds = ((0.0, 13.0), (0.0, 4.0))
+    sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
+    print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
+    [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
+    X = sol_BC03.x
+    x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+    chi_square_list.loc[row,'BC_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'BC_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
 
-#     print('____________________BC03_________________________ Optimization__________________________')
-#     X = np.array([galaxy_age,intrinsic_Av])
-#     bnds = ((0.0, 13.0), (0.0, 4.0))
-#     sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
-#     print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
-#     [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
-#     X = sol_BC03.x
-#     x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#     x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#     chi_square_list.loc[row,'BC_age_opt'] = X[0]#"{0:.2f}".format(X[0])
-#     chi_square_list.loc[row,'BC_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
-#     chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
-#     chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
-#     chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
-
-#     #--- Plot
-#     X = sol_BC03.x
-#     n = len(x)
-#     fig1 = plt.figure(figsize=(20,10))
-#     frame1 = fig1.add_axes((.1,.35,.8,.6))
-#     plt.step(x, y, color='r',lw=3)
-#     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#     BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-#     plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
-#     model_wave = BC03_wave_list_num
-#     model_flux = BC03_flux_attenuated
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.ylim([0.05, 1.1])
-#     plt.semilogx()
-#     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#     plt.tick_params(axis='both', which='major', labelsize=22)
-#     plt.legend(loc='upper right',fontsize=24)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    #--- Plot
+    X = sol_BC03.x
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10))
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x, y, color='r',lw=3)
+    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+    BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+    plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+    model_wave = BC03_wave_list_num
+    model_flux = BC03_flux_attenuated
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.2])
+    plt.semilogx()
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='upper right',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
-#     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#     relative_spectra = np.zeros([1,n])
-#     relative_spectra_err = np.zeros([1,n])
-#     relative_sigma = np.zeros([1,n])
-#     index0 = 0
-#     for wave in x:
-#         if y[index0]>0.25 and y[index0]<1.35:
-#             index = find_nearest(model_wave, wave);#print index
-#             relative_spectra[0, index0] = y[index0]/model_flux[index]
-#             relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#             relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#             index0 = index0+1
-#     plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-#     index0 = 0
-#     for i in range(len(wave_list)):
-#         try:
-#             index = find_nearest(model_wave, wave_list[i])
-#         except:
-#             pass
-#         plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#         index0 = index0+1
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.semilogx()
-#     plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
-#     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.ylim([-5,5])
-#     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#     plt.tick_params(axis='both', which='major', labelsize=20)
-#     plt.tick_params(axis='both', which='minor', labelsize=20)
-#     figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#     plt.savefig(figname)
-#     plt.clf()
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    relative_spectra = np.zeros([1,n])
+    relative_spectra_err = np.zeros([1,n])
+    relative_sigma = np.zeros([1,n])
+    index0 = 0
+    for wave in x:
+        if y[index0]>0.25 and y[index0]<1.35:
+            index = find_nearest(model_wave, wave);#print index
+            relative_spectra[0, index0] = y[index0]/model_flux[index]
+            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+            index0 = index0+1
+    plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+    for i in range(len(wave_list)):
+        try:
+            index = find_nearest(model_wave, wave_list[i])
+        except:
+            pass
+        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+    plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    plt.savefig(figname)
+    plt.clf()
 
-#     with Pool() as pool:
-#         ndim, nwalkers = 2, 10
-#         tik = time.clock()
-#         p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
-#         sampler.run_mcmc(p0, nsteps, progress=True)
-#         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#         samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-#         tok = time.clock()
-#         multi_time = tok-tik
-#         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#         print('Time to run BC03 MCMC:'+str(tok-tik))
-#     try:
-#         if samples.size > 1e3:
-#             value2=np.percentile(samples,50,axis=0)
-#             X = np.percentile(samples, 50, axis=0)
-#             [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
-#             plt.figure(figsize=(32,32),dpi=100)
-#             fig = corner.corner(samples,
-#                                 labels=["age(Gyr)", r"$\rm A_V$"],\
-#                                 truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-#                                 levels=(1-np.exp(-0.5),),\
-#                                 show_titles=True,title_kwargs={'fontsize':12},
-#                                 quantiles=(0.16,0.5, 0.84))
-#             axes = np.array(fig.axes).reshape((ndim, ndim))
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#                 ax.axvline(value2[i],color='r')
-#             # Loop over the histograms
-#             for yi in range(ndim):
-#                 for xi in range(yi):
-#                     ax = axes[yi, xi]
-#                     ax.axvline(X[xi], color="g")
-#                     ax.axvline(value2[xi], color="r")
-#                     ax.axhline(X[yi], color="g")
-#                     ax.axhline(value2[yi], color="r")
-#                     ax.plot(X[xi], X[yi], "sg")
-#                     ax.plot(value2[xi],value2[yi],'sr')
-#             plt.rcParams.update({'font.size': 12})
-#             figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#             fig.savefig(figname)
-#             fig.clf()
-#             print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
+        tok = time.clock()
+        multi_time = tok-tik
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        print('Time to run BC03 MCMC:'+str(tok-tik))
+    try:
+        if samples.size > 1e3:
+            value2=np.percentile(samples,50,axis=0)
+            X = np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                                labels=["age(Gyr)", r"$\rm A_V$"],\
+                                truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
+                                levels=(1-np.exp(-0.5),),\
+                                show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            fig.savefig(figname)
+            fig.clf()
+            print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
             
-#             #--- Plot
-#             X = np.percentile(samples, 50, axis=0)
-#             x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#             x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#             chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#             chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#             chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
-#             chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
-#             chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
-#             chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#             chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+            #--- Plot
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+            chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-#             n = len(x)
-#             fig1 = plt.figure(figsize=(20,10))
-#             frame1 = fig1.add_axes((.1,.35,.8,.6))
+            n = len(x)
+            fig1 = plt.figure(figsize=(20,10))
+            frame1 = fig1.add_axes((.1,.35,.8,.6))
 
-#             plt.step(x, y, color='r',lw=3)
-#             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+            plt.step(x, y, color='r',lw=3)
+            plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+            plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
 
-#             # SSP
-#             BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+            # SSP
+            BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
 
-#             plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
-#             model_wave = BC03_wave_list_num
-#             model_flux = BC03_flux_attenuated
+            plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+            model_wave = BC03_wave_list_num
+            model_flux = BC03_flux_attenuated
             
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-#             plt.semilogx()
+            plt.xlim([2.5e3,1.9e4])
+            plt.ylim([0.05, 1.2])
+            plt.semilogx()
 
-#             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#             plt.tick_params(axis='both', which='major', labelsize=22)
-#             plt.legend(loc='upper right',fontsize=24)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+            plt.tick_params(axis='both', which='major', labelsize=22)
+            plt.legend(loc='upper right',fontsize=24)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
-#             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#             relative_spectra = np.zeros([1,n])
-#             relative_spectra_err = np.zeros([1,n])
-#             relative_sigma = np.zeros([1,n])
-#             index0 = 0
-#             for wave in x:
-#                 if y[index0]>0.25 and y[index0]<1.35:
-#                     index = find_nearest(model_wave, wave);#print index
-#                     relative_spectra[0, index0] = y[index0]/model_flux[index]
-#                     relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#                     relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#                     index0 = index0+1
-#             plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-#             index0 = 0
-#             for i in range(len(wave_list)):
-#                 try:
-#                     index = find_nearest(model_wave, wave_list[i])
-#                 except:
-#                     pass
-#                 plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#                 index0 = index0+1
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.semilogx()
-#             plt.tick_params(axis='both', which='major', labelsize=20)
-#             plt.tick_params(axis='both', which='minor', labelsize=20)
-#             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.ylim([-5,5])
-#             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#             figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#             plt.savefig(figname)
-#             plt.close('all')
-#         else: 
-#             with Pool() as pool:
-#                 ndim, nwalkers = 2, 10
-#                 tik = time.clock()
-#                 p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
-#                 sampler.run_mcmc(p0, nsteps*2, progress=True)
-#                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#                 samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-#                 multi_time = tok-tik
-#                 tok = time.clock()
-#                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#             if samples.size > 1e3:
-#                 value2=np.percentile(samples,50,axis=0)
-#                 X = np.percentile(samples, 50, axis=0)
-#                 [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
-#                 plt.figure(figsize=(32,32),dpi=100)
-#                 fig = corner.corner(samples,
-#                                     labels=["age(Gyr)", r"$\rm A_V$"],\
-#                                     truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-#                                     levels=(1-np.exp(-0.5),),\
-#                                     show_titles=True,title_kwargs={'fontsize':12},
-#                                     quantiles=(0.16,0.5, 0.84))
-#                 axes = np.array(fig.axes).reshape((ndim, ndim))
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                     ax.axvline(value2[i],color='r')
-#                 # Loop over the histograms
-#                 for yi in range(ndim):
-#                     for xi in range(yi):
-#                         ax = axes[yi, xi]
-#                         ax.axvline(X[xi], color="g")
-#                         ax.axvline(value2[xi], color="r")
-#                         ax.axhline(X[yi], color="g")
-#                         ax.axhline(value2[yi], color="r")
-#                         ax.plot(X[xi], X[yi], "sg")
-#                         ax.plot(value2[xi],value2[yi],'sr')
-#                 plt.rcParams.update({'font.size': 12})
-#                 figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#                 plt.savefig(figname)
-#                 fig.clf()
-#                 print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+            frame2 = fig1.add_axes((.1,.2,.8,.15))  
+            relative_spectra = np.zeros([1,n])
+            relative_spectra_err = np.zeros([1,n])
+            relative_sigma = np.zeros([1,n])
+            index0 = 0
+            for wave in x:
+                if y[index0]>0.25 and y[index0]<1.35:
+                    index = find_nearest(model_wave, wave);#print index
+                    relative_spectra[0, index0] = y[index0]/model_flux[index]
+                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                    index0 = index0+1
+            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+            for i in range(len(wave_list)):
+                try:
+                    index = find_nearest(model_wave, wave_list[i])
+                except:
+                    pass
+                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            plt.xlim([2.5e3,1.9e4])
+            plt.semilogx()
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
+            plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+            plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+            plt.ylim([-5,5])
+            plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+            plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+            figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            plt.savefig(figname)
+            plt.close('all')
+        else: 
+            with Pool() as pool:
+                ndim, nwalkers = 2, 10
+                tik = time.clock()
+                p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
+                samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+                samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
+                multi_time = tok-tik
+                tok = time.clock()
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+            if samples.size > 1e3:
+                value2=np.percentile(samples,50,axis=0)
+                X = np.percentile(samples, 50, axis=0)
+                [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
+                plt.figure(figsize=(32,32),dpi=100)
+                fig = corner.corner(samples,
+                                    labels=["age(Gyr)", r"$\rm A_V$"],\
+                                    truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
+                                    levels=(1-np.exp(-0.5),),\
+                                    show_titles=True,title_kwargs={'fontsize':12},
+                                    quantiles=(0.16,0.5, 0.84))
+                axes = np.array(fig.axes).reshape((ndim, ndim))
+                for i in range(ndim):
+                    ax = axes[i, i]
+                    ax.axvline(X[i], color="g")
+                    ax.axvline(value2[i],color='r')
+                # Loop over the histograms
+                for yi in range(ndim):
+                    for xi in range(yi):
+                        ax = axes[yi, xi]
+                        ax.axvline(X[xi], color="g")
+                        ax.axvline(value2[xi], color="r")
+                        ax.axhline(X[yi], color="g")
+                        ax.axhline(value2[yi], color="r")
+                        ax.plot(X[xi], X[yi], "sg")
+                        ax.plot(value2[xi],value2[yi],'sr')
+                plt.rcParams.update({'font.size': 12})
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                plt.savefig(figname)
+                fig.clf()
+                print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
                 
-#                 #--- Plot
-#                 X = np.percentile(samples, 50, axis=0)
-#                 x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#                 x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#                 chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#                 chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#                 chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
-#                 chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
-#                 chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
-#                 chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#                 chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+                #--- Plot
+                X = np.percentile(samples, 50, axis=0)
+                x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
+                x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
+                chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+                chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+                chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
+                chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
+                chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
+                chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+                chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-#                 n = len(x)
-#                 fig1 = plt.figure(figsize=(20,10))
-#                 frame1 = fig1.add_axes((.1,.35,.8,.6))
+                n = len(x)
+                fig1 = plt.figure(figsize=(20,10))
+                frame1 = fig1.add_axes((.1,.35,.8,.6))
 
-#                 plt.step(x, y, color='r',lw=3)
-#                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+                plt.step(x, y, color='r',lw=3)
+                plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
 
-#                 # SSP
-#                 BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
+                # SSP
+                BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
                 
 
-#                 plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
-#                 model_wave = BC03_wave_list_num
-#                 model_flux = BC03_flux_attenuated
+                plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
+                model_wave = BC03_wave_list_num
+                model_flux = BC03_flux_attenuated
                 
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.ylim([0.05, 1.1])#plt.ylim([ymin,ymax])
-#                 plt.semilogx()
+                plt.xlim([2.5e3,1.9e4])
+                plt.ylim([0.05, 1.2])
+                plt.semilogx()
 
-#                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#                 plt.tick_params(axis='both', which='major', labelsize=22)
-#                 plt.legend(loc='upper right',fontsize=24)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+                plt.tick_params(axis='both', which='major', labelsize=22)
+                plt.legend(loc='upper right',fontsize=24)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
-#                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#                 relative_spectra = np.zeros([1,n])
-#                 relative_spectra_err = np.zeros([1,n])
-#                 index0 = 0
-#                 for wave in x:
-#                     if y[index0]>0.25 and y[index0]<1.35:
-#                         index = find_nearest(model_wave, wave);#print index
-#                         relative_spectra[0, index0] = y[index0]/model_flux[index]
-#                         relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-#                         relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-#                         index0 = index0+1
-#                 plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-#                 index0 = 0
-#                 for i in range(len(wave_list)):
-#                     try:
-#                         index = find_nearest(model_wave, wave_list[i])
-#                     except:
-#                         pass
-#                     plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
-#                     index0 = index0+1
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.semilogx()
-#                 plt.tick_params(axis='both', which='major', labelsize=20)
-#                 plt.tick_params(axis='both', which='minor', labelsize=20)
-#                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.ylim([-5,5])
-#                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#                 figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#                 plt.savefig(figname)
-#                 plt.close('all')
-#     except:
-#         pass
-#     chi2_array=chi_square_list.loc[row,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
-#     AV_array=chi_square_list.loc[row,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
-#     index = find_nearest(chi2_array,0)
-#     AV_opt = float(AV_array[index])
-#     spectra_extinction = calzetti00(x, AV_opt, 4.05)
-#     spectra_flux_correction = 10 ** (-0.4 * spectra_extinction)
-#     y_corr = y / spectra_flux_correction
-#     if redshift<0.49:
-#         try:
-#             chi_square_list.loc[row,'grism_index_AV_corr'] = Lick_index_ratio(x,y_corr)
-#         except:
-#             pass
-#     chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_aegis-three_models_optimized_'+str(date)+'_photo'+str(region)+str(ID)+'.csv')
-#     print('-------------------------------------End--------------------------------------------------------------------------------------')
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                relative_spectra = np.zeros([1,n])
+                relative_spectra_err = np.zeros([1,n])
+                index0 = 0
+                for wave in x:
+                    if y[index0]>0.25 and y[index0]<1.35:
+                        index = find_nearest(model_wave, wave);#print index
+                        relative_spectra[0, index0] = y[index0]/model_flux[index]
+                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
+                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
+                        index0 = index0+1
+                plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
+                for i in range(len(wave_list)):
+                    try:
+                        index = find_nearest(model_wave, wave_list[i])
+                    except:
+                        pass
+                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                plt.xlim([2.5e3,1.9e4])
+                plt.semilogx()
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
+                plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+                plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+                plt.ylim([-5,5])
+                plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+                plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
+                plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+                plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                plt.savefig(figname)
+                plt.close('all')
+    except:
+        pass
+    chi2_array=chi_square_list.loc[row,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
+    AV_array=chi_square_list.loc[row,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
+    index = find_nearest(chi2_array,0)
+    AV_opt = float(AV_array[index])
+    spectra_extinction = calzetti00(x, AV_opt, 4.05)
+    spectra_flux_correction = 10 ** (-0.4 * spectra_extinction)
+    y_corr = y / spectra_flux_correction
+    if redshift<0.49:
+        try:
+            chi_square_list.loc[row,'grism_index_AV_corr'] = Lick_index_ratio(x,y_corr)
+        except:
+            pass
+    chi_square_list.to_csv('/Volumes/My Passport/GV_CMD_fn_table_20180904/chi_square_list_aegis-three_models_optimized_'+str(date)+'_photo'+str(region)+str(ID)+'.csv')
+    print('-------------------------------------End--------------------------------------------------------------------------------------')
 
