@@ -1634,7 +1634,6 @@ for i in range(len(df)):
     grism_flux_array_for_scaling = grism_flux_array_for_scaling[mask_non_neg_photo]
     grism_flux_err_array_for_scaling = grism_flux_err_array_for_scaling[mask_non_neg_photo]
     grism_wave_array_for_scaling = grism_wave_array_for_scaling[mask_non_neg_photo]
-s
     print('Number of photometric points for rescaling:',len(photo_array_for_scaling))
     # coeff = np.mean(photo_array_for_scaling/grism_flux_array_for_scaling)
     # y = y*coeff

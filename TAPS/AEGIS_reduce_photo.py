@@ -1573,7 +1573,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
                         sum_transmission += transmission[j]*wave_inter[j]
                         length = length+1
                 except:
-                    print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
+                    print('Error',n, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
                      
         elif n==1:
             flambda_AB_K = flux[0]*transmission[0]
