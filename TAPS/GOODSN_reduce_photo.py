@@ -1229,6 +1229,7 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         x2_photo = np.inf
         print('ValueError', x2)
     return x2, x2_photo
+
 def minimize_age_AV_vector_weighted_BC03(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1435,6 +1436,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 
     #    SNR Mask
     mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
+    wave_list = wave_list[mask_SNR3_photo]
     photometric_flux = photometric_flux[mask_SNR3_photo]
     photometric_flux_err = photometric_flux_err[mask_SNR3_photo]
     photometric_flux_err_mod = photometric_flux_err_mod[mask_SNR3_photo]
@@ -1450,6 +1452,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
         sum_transmission = 0
         length = 0
         filter_curve = filter_curve_list[i-1]
+        filter_curve_fit = filter_curve_fit_list[i-1]
 
         wave_inter = np.zeros(len(model_wave))
         wave_inter[:-1] = np.diff(model_wave)
@@ -1461,7 +1464,89 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
         wave = wave[index]
         flux = flux[index]
         wave_inter = wave_inter[index]
-        transmission = np.interp(wave, filter_curve[:,0], filter_curve[:,1])
+        # transmission = np.interp(wave, filter_curve[:,0], filter_curve[:,1])
+        transmission = filter_curve_fit(wave)
+
+
+        n = len(flux)
+        if n!= 0 and n!=1:
+            for j in range(n):
+                try:
+                    if all_same(wave_inter):
+                        flambda_AB_K = flux[j]*transmission[j]
+                        sum_flambda_AB_K += flambda_AB_K
+                        sum_transmission += transmission[j]
+                        length = length+1
+                    else:
+                        flambda_AB_K = flux[j]*transmission[j]*wave_inter[j]
+                        sum_flambda_AB_K += flambda_AB_K
+                        sum_transmission += transmission[j]*wave_inter[j]
+                        length = length+1
+                except:
+                    print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
+                     
+        elif n==1:
+            flambda_AB_K = flux[0]*transmission[0]
+            sum_flambda_AB_K += flambda_AB_K*wave_inter
+            sum_transmission += np.sum(transmission)*wave_inter
+            length = length+1
+        
+        if length == 0:
+            photometry_list[photometry_list_index]=0
+        else:
+            photometry_list[photometry_list_index] = sum_flambda_AB_K/sum_transmission
+        photometry_list_index += 1
+
+    chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
+    plt.scatter(wave_list,photometry_list, s=40, color='green')
+
+    tok = time.clock()
+    dof = len(chisquare_photo_list)-2
+    reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
+
+    return reduced_chi_square_photo
+def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod):
+    """
+    work in the observed frame
+    """
+    tik = time.clock()
+    model_wave = model_wave*(1+redshift_1)
+    model_flux = model_flux
+
+    filter_array_index= np.arange(1,19)
+
+    #    SNR Mask
+    mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
+    photometric_flux = photometric_flux[mask_SNR3_photo]
+    photometric_flux_err = photometric_flux_err[mask_SNR3_photo]
+    photometric_flux_err_mod = photometric_flux_err_mod[mask_SNR3_photo]
+    filter_array_index = filter_array_index[mask_SNR3_photo]
+
+    photometry_list = np.zeros(len(photometric_flux))
+    photometry_list_index = 0
+    # print('masked filter array index:',filter_array_index)
+    
+    for i in filter_array_index:
+
+        sum_flambda_AB_K = 0
+        sum_transmission = 0
+        length = 0
+        filter_curve = filter_curve_list[i-1]
+        filter_curve_fit = filter_curve_fit_list[i-1]
+
+        wave_inter = np.zeros(len(model_wave))
+        wave_inter[:-1] = np.diff(model_wave)
+        index = np.where(model_wave<filter_curve[-1,0])[0]#[0]
+        wave = model_wave[index]
+        flux = model_flux[index]
+        wave_inter = wave_inter[index]
+        index = np.where(wave>filter_curve[0,0])
+        wave = wave[index]
+        flux = flux[index]
+        wave_inter = wave_inter[index]
+        # transmission = np.interp(wave, filter_curve[:,0], filter_curve[:,1])
+        transmission = filter_curve_fit(wave)
+
 
         n = len(flux)
         if n!= 0 and n!=1:
@@ -1495,10 +1580,10 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
     
     tok = time.clock()
-    dof = len(chisquare_photo_list)-2
-    reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
+    # dof = len(chisquare_photo_list)-2
+    # reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
 
-    return reduced_chi_square_photo
+    return photometry_list
 
 nsteps=3000
 current_dir = '/Volumes/My Passport/TPAGB/'
@@ -1543,7 +1628,10 @@ for i in range(len(df)):
     print('Galaxy age:', galaxy_age)
     A_v=0.0304    
     c=3e10
-    
+
+    smoothing_deltal=46.5/(1+redshift_1)#*df_photometry[df_photometry.id==ID].b_image.values[0]#/(1+redshift_1)#787.245
+    print('smoothing_deltal',smoothing_deltal)
+
     chi_square_list.loc[row,'ID'] = float(ID)
     chi_square_list.loc[row,'region'] = region
     chi_square_list.loc[row,'field'] = 'goodsn'
@@ -1743,7 +1831,10 @@ for i in range(len(df)):
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave,model_flux  =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-    plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+    sampling_model = interpolate.interp1d(model_wave,model_flux)
+    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+    sampling_flux = sampling_model(sampling_wave)
+    plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -1754,24 +1845,11 @@ for i in range(len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    relative_spectra = np.zeros([1,n])
-    relative_spectra_err = np.zeros([1,n])
-    relative_sigma = np.zeros([1,n])
-    index0 = 0
-    for wave in x:
-        if y[index0]>0.25 and y[index0]<1.35:
-            index = find_nearest(model_wave, wave);#print index
-            relative_spectra[0, index0] = y[index0]/model_flux[index]
-            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-            index0 = index0+1
-    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    for i in range(len(wave_list)):
-        try:
-            index = find_nearest(model_wave, wave_list[i])
-        except:
-            pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    model_flux_grism = sampling_model(x)
+    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -1854,9 +1932,12 @@ for i in range(len(df)):
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-            model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
-            model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
-            plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+            model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+            sampling_model = interpolate.interp1d(model_wave,model_flux)
+            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+            sampling_flux = sampling_model(sampling_wave)
+            plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
+
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -1867,24 +1948,11 @@ for i in range(len(df)):
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-            relative_spectra = np.zeros([1,n])
-            relative_spectra_err = np.zeros([1,n])
-            relative_sigma = np.zeros([1,n])
-            index0 = 0
-            for wave in x:
-                if y[index0]>0.25 and y[index0]<1.35:
-                    index = find_nearest(model_wave, wave);#print index
-                    relative_spectra[0, index0] = y[index0]/model_flux[index]
-                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                    index0 = index0+1
-            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-            for i in range(len(wave_list)):
-                try:
-                    index = find_nearest(model_wave, wave_list[i])
-                except:
-                    pass
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            model_flux_grism = sampling_model(x)
+            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+            syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -1964,9 +2032,11 @@ for i in range(len(df)):
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-                model_wave =minimize_age_AV_vector_weighted_return_flux(X)[1]
-                model_flux =minimize_age_AV_vector_weighted_return_flux(X)[2]
-                plt.plot(model_wave, model_flux, color='k',label='TP-AGB heavy',lw=0.5)
+                model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+                sampling_model = interpolate.interp1d(model_wave,model_flux)
+                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+                sampling_flux = sampling_model(sampling_wave)
+                plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -1977,24 +2047,11 @@ for i in range(len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                relative_spectra = np.zeros([1,n])
-                relative_spectra_err = np.zeros([1,n])
-                relative_sigma = np.zeros([1,n])
-                index0 = 0
-                for wave in x:
-                    if y[index0]>0.25 and y[index0]<1.35:
-                        index = find_nearest(model_wave, wave);#print index
-                        relative_spectra[0, index0] = y[index0]/model_flux[index]
-                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                        index0 = index0+1
-                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                for i in range(len(wave_list)):
-                    try:
-                        index = find_nearest(model_wave, wave_list[i])
-                    except:
-                        pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                model_flux_grism = sampling_model(x)
+                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2043,7 +2100,10 @@ for i in range(len(df)):
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-    plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+    sampling_model = interpolate.interp1d(model_wave,model_flux)
+    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+    sampling_flux = sampling_model(sampling_wave)
+    plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -2054,24 +2114,11 @@ for i in range(len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    relative_spectra = np.zeros([1,n])
-    relative_spectra_err = np.zeros([1,n])
-    relative_sigma = np.zeros([1,n])
-    index0 = 0
-    for wave in x:
-        if y[index0]>0.25 and y[index0]<1.35:
-            index = find_nearest(model_wave, wave);#print index
-            relative_spectra[0, index0] = y[index0]/model_flux[index]
-            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-            index0 = index0+1
-    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    for i in range(len(wave_list)):
-        try:
-            index = find_nearest(model_wave, wave_list[i])
-        except:
-            pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    model_flux_grism = sampling_model(x)
+    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2158,7 +2205,10 @@ for i in range(len(df)):
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-            plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+            sampling_model = interpolate.interp1d(model_wave,model_flux)
+            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+            sampling_flux = sampling_model(sampling_wave)
+            plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -2169,24 +2219,11 @@ for i in range(len(df)):
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-            relative_spectra = np.zeros([1,n])
-            relative_spectra_err = np.zeros([1,n])
-            relative_sigma = np.zeros([1,n])
-            index0 = 0
-            for wave in x:
-                if y[index0]>0.25 and y[index0]<1.35:
-                    index = find_nearest(model_wave, wave);#print index
-                    relative_spectra[0, index0] = y[index0]/model_flux[index]
-                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                    index0 = index0+1
-            plt.step(x[:index0], relative_sigma[0,:index0], color='r', linewidth=2)
-            for i in range(len(wave_list)):
-                try:
-                    index = find_nearest(model_wave, wave_list[i])
-                except:
-                    pass
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            model_flux_grism = sampling_model(x)
+            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+            syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2271,7 +2308,10 @@ for i in range(len(df)):
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-                plt.plot(model_wave, model_flux, color='g',label='TP-AGB mild',lw=0.5)
+                sampling_model = interpolate.interp1d(model_wave,model_flux)
+                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+                sampling_flux = sampling_model(sampling_wave)
+                plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2282,24 +2322,11 @@ for i in range(len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                relative_spectra = np.zeros([1,n])
-                relative_spectra_err = np.zeros([1,n])
-                relative_sigma = np.zeros([1,n])
-                index0 = 0
-                for wave in x:
-                    if y[index0]>0.25 and y[index0]<1.35:
-                        index = find_nearest(model_wave, wave);#print index
-                        relative_spectra[0, index0] = y[index0]/model_flux[index]
-                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                        index0 = index0+1
-                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                for i in range(len(wave_list)):
-                    try:
-                        index = find_nearest(model_wave, wave_list[i])
-                    except:
-                        pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                model_flux_grism = sampling_model(x)
+                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2344,9 +2371,12 @@ for i in range(len(df)):
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-    plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
     model_wave = BC03_wave_list_num
-    model_flux = BC03_flux_attenuated   
+    model_flux = BC03_flux_attenuated
+    sampling_model = interpolate.interp1d(model_wave,model_flux)
+    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+    sampling_flux = sampling_model(sampling_wave)
+    plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)   
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -2357,24 +2387,11 @@ for i in range(len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    relative_spectra = np.zeros([1,n])
-    relative_spectra_err = np.zeros([1,n])
-    relative_sigma = np.zeros([1,n])
-    index0 = 0
-    for wave in x:
-        if y[index0]>0.25 and y[index0]<1.35:
-            index = find_nearest(model_wave, wave);#print index
-            relative_spectra[0, index0] = y[index0]/model_flux[index]
-            relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-            relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-            index0 = index0+1
-    plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-    for i in range(len(wave_list)):
-        try:
-            index = find_nearest(model_wave, wave_list[i])
-        except:
-            pass
-        plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+    model_flux_grism = sampling_model(x)
+    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
@@ -2455,9 +2472,12 @@ for i in range(len(df)):
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-            plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
             model_wave = BC03_wave_list_num
-            model_flux = BC03_flux_attenuated            
+            model_flux = BC03_flux_attenuated       
+            sampling_model = interpolate.interp1d(model_wave,model_flux)
+            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+            sampling_flux = sampling_model(sampling_wave)
+            plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -2467,25 +2487,12 @@ for i in range(len(df)):
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
-            frame2 = fig1.add_axes((.1,.2,.8,.15))  
-            relative_spectra = np.zeros([1,n])
-            relative_spectra_err = np.zeros([1,n])
-            relative_sigma = np.zeros([1,n])
-            index0 = 0
-            for wave in x:
-                if y[index0]>0.25 and y[index0]<1.35:
-                    index = find_nearest(model_wave, wave);#print index
-                    relative_spectra[0, index0] = y[index0]/model_flux[index]
-                    relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                    relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                    index0 = index0+1
-            plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-            for i in range(len(wave_list)):
-                try:
-                    index = find_nearest(model_wave, wave_list[i])
-                except:
-                    pass
-                plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+            frame2 = fig1.add_axes((.1,.2,.8,.15)) 
+            model_flux_grism = sampling_model(x)
+            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
+            syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
@@ -2565,9 +2572,12 @@ for i in range(len(df)):
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
                 BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-                plt.plot(BC03_wave_list_num, BC03_flux_attenuated, color='orange',label='TP-AGB light',lw=0.5)
                 model_wave = BC03_wave_list_num
-                model_flux = BC03_flux_attenuated            
+                model_flux = BC03_flux_attenuated         
+                sampling_model = interpolate.interp1d(model_wave,model_flux)
+                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
+                sampling_flux = sampling_model(sampling_wave)
+                plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2578,24 +2588,11 @@ for i in range(len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                relative_spectra = np.zeros([1,n])
-                relative_spectra_err = np.zeros([1,n])
-                relative_sigma = np.zeros([1,n])
-                index0 = 0
-                for wave in x:
-                    if y[index0]>0.25 and y[index0]<1.35:
-                        index = find_nearest(model_wave, wave);#print index
-                        relative_spectra[0, index0] = y[index0]/model_flux[index]
-                        relative_spectra_err[0, index0] = y_err[index0]/model_flux[index]
-                        relative_sigma[0, index0] = (y[index0]-model_flux[index])/y_err[index0]
-                        index0 = index0+1
-                plt.step(x[:index0], relative_sigma[0, :index0], color='r', linewidth=2)
-                for i in range(len(wave_list)):
-                    try:
-                        index = find_nearest(model_wave, wave_list[i])
-                    except:
-                        pass
-                    plt.errorbar(wave_list[i], (photometric_flux[i]-model_flux[index])/photometric_flux_err_mod[i], xerr=band_list[i], fmt='o', color='r', markersize=12)
+                model_flux_grism = sampling_model(x)
+                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
