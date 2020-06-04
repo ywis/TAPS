@@ -1552,6 +1552,8 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 
     #    SNR Mask
     mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
+    wave_list = wave_list[mask_SNR3_photo]
+    band_list = band_list[mask_SNR3_photo]
     photometric_flux = photometric_flux[mask_SNR3_photo]
     photometric_flux_err = photometric_flux_err[mask_SNR3_photo]
     photometric_flux_err_mod = photometric_flux_err_mod[mask_SNR3_photo]
@@ -1618,15 +1620,15 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
     
     tok = time.clock()
-    # dof = len(chisquare_photo_list)-2
-    # reduced_chi_square_photo = np.sum(chisquare_photo_list)/dof
+    plt.errorbar(wave_list, (photometric_flux - photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+
 
     return photometry_list
 
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200424'
+date='20200601'
 plot_dir = 'plot/'+date+'_cosmos/'
 
 tik = time.time()
@@ -2064,7 +2066,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
     model_flux_grism = sampling_model(x)
     plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -2172,7 +2174,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
             model_flux_grism = sampling_model(x)
             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2279,7 +2281,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
                 model_flux_grism = sampling_model(x)
                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
@@ -2349,7 +2351,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
     model_flux_grism = sampling_model(x)
     plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -2450,7 +2452,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
             model_flux_grism = sampling_model(x)
             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2551,7 +2553,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
                 model_flux_grism = sampling_model(x)
                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
@@ -2617,7 +2619,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
     model_flux_grism = sampling_model(x)
     plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -2720,7 +2722,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
             model_flux_grism = sampling_model(x)
             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2823,7 +2825,7 @@ for i in range(len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61
                 model_flux_grism = sampling_model(x)
                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
+                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
