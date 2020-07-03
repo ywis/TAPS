@@ -43,7 +43,7 @@ df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153","L1
 # df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200206_PSB.csv', sep=',')
 df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200301_PSB.csv', sep=',')
 df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200303_PSB.csv', sep=',')
-# df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200317_PSB.csv', sep=',')
+df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200317_PSB.csv', sep=',')
 # df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_cosmos_20200329_PSB.csv', sep=',')
 
 
@@ -504,7 +504,9 @@ def minimize_age_AV_vector_weighted(X):
     binning_index = find_nearest(model1[0,:],np.median(x))
     print('Smoothness kernel size M05:', smoothing_deltal/5.) #(model1[0,binning_index]-model1[0,binning_index-1]))
     print('delta_lambda from observed grism spectra:', x[int(n/2)]-x[int(n/2)-1])
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ 5.)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ 5.)
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
     smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -604,7 +606,9 @@ def lg_minimize_age_AV_vector_weighted(X):
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
     binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
     smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -710,7 +714,8 @@ def minimize_age_AV_vector_weighted_return_flux(X):
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
     binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)#smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
     smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
 
 
@@ -814,7 +819,9 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
     
     binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
     smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
     
     if binning_index == 0:
@@ -920,8 +927,10 @@ def minimize_age_AV_vector_weighted_M13(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
     binning_index = find_nearest(model2[0,:],np.median(x))
-    print('Smoothness kernel size M13:', smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # print('Smoothness kernel size M13:', smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
     smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -1036,7 +1045,9 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
     
     binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
     smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -1149,7 +1160,9 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
     binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
     smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -1251,7 +1264,9 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
     binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
     smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
 
     if binning_index == 0:
@@ -1307,9 +1322,10 @@ def minimize_age_AV_vector_weighted_BC03(X):
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
     binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    print('Smoothness kernel size BC:', smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+    # print('Smoothness kernel size BC:', smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
     BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
 
     if binning_index == 0:
@@ -1358,7 +1374,9 @@ def lg_minimize_age_AV_vector_weighted_BC03(X):
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
     binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
     BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
 
     if binning_index == 0:
@@ -1420,7 +1438,9 @@ def minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X):
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
     binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
     BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
 
     if binning_index == 0:
@@ -1468,7 +1488,9 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
     binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
+    flux_radius = df_photometry.iloc[ID-1].flux_radius
+    gauss_kernel = Gaussian1DKernel(flux_radius)
+    # gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
     BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
 
     if binning_index == 0:
@@ -1685,7 +1707,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/Volumes/My Passport/TPAGB/'
 outcome_dir = 'outcome/'
-date='20200421'
+date='20200619'
 plot_dir = 'plot/'+date+'_cosmos/'
 
 tik = time.time()
@@ -1707,7 +1729,7 @@ for i in range(1,41):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in range(len(df)):
+for i in range(10):
     # 35: 11-27160
     # 9: 1-22611
     # 8: 1-22285
@@ -2073,12 +2095,16 @@ for i in range(len(df)):
                            w=rescaling_err)
     y_fit = np.polyval(p,x)
     y = y_fit*y
-    print('0th coeff from polyfit after masking:',np.unique(y_fit))
+    print('0th coeff from polyfit after masking:', np.unique(y_fit))
 
     print('photo flux ',photometric_flux)
-    print('Number of photo points and the positive ones:',len(photometric_flux[photometric_flux>0]))
-    print('Photo SNR:',len(photometric_flux/photometric_flux_err>3),np.where(photometric_flux/photometric_flux_err<=3))
-
+    print('Number of photo points and the positive ones:', len(photometric_flux[photometric_flux>0]))
+    print('Photo SNR:', len(photometric_flux/photometric_flux_err>3), np.where(photometric_flux/photometric_flux_err<=3))
+    ## masking out SNR>3 spectroscopic data points
+    mask_SNR3_spec = np.where(y/y_err>3)
+    x = x[mask_SNR3_spec]
+    y = y[mask_SNR3_spec]
+    y_err = y_err[mask_SNR3_spec]
     # print('photo wave',wave_list)
 # Using bounds to constrain
 # Test with M05 model

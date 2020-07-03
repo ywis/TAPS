@@ -7,19 +7,17 @@ from astropy import units as units
 import astropy.io.fits as pyfits
 from astropy.convolution import Gaussian1DKernel, convolve
 from extinction import calzetti00, apply, ccm89
-from scipy import optimize,interpolate
+from scipy import optimize, interpolate
+from scipy.ndimage import uniform_filter1d, gaussian_filter1d
 import sys
 import time
 import emcee
 import corner
-import math
 from multiprocessing import Pool,cpu_count
-
+import glob,os
+import math
 import warnings
 warnings.filterwarnings('ignore')
-
-ncpu = cpu_count()
-print("{0} CPUs".format(ncpu))
 
 plt.tight_layout()
 plt.rc('lines', linewidth=1, markersize=2)
@@ -32,37 +30,29 @@ plt.tick_params(axis='both', which='major', labelsize=18)
 plt.tick_params(axis='both', which='minor', labelsize=18)
 plt.subplots_adjust(bottom=0.2, left=0.2)
 
-### Reading Spectra
-df_cat=pd.read_csv('/home/siqi/goodss_3dhst_v4.1.5_catalogs/goodss_3dhst.v4.1.5.zbest.rf', delim_whitespace=True,header=None,comment='#',index_col=False)
-df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153","L154","nfilt154", "L155", "nfilt155", "L161", "nfilt161", "L162", "nfilt162",\
-                "L163", "nfilt163", "L156", "nfilt156", "L157", "nfilt157", "L158", "nfilt158", "L159", "nfilt159", "L160", "nfilt160", "L135", "nfilt135", "L136", "nfilt136",\
-                "L137", "nfilt137", "L138", "nfilt138", "L139", "nfilt139", "L270", "nfilt270", "L271", "nfilt271", "L272", "nfilt272", "L273", "nfilt273", "L274", "nfilt274", "L275", "nfilt275"]
+os.environ["OMP_NUM_THREADS"] = "1"
 
+ncpu = cpu_count()
+print("{0} CPUs".format(ncpu))
 
-df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_goodss_20200317_PSB.csv', sep=',')
+df_cat=pd.read_csv('/home/siqi/aegis_3dhst_v4.1.5_catalogs/aegis_3dhst.v4.1.5.zbest.rf', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153", "L154","nfilt154", "L155", "nfilt155", "L161", "nfilt161", "L162", "nfilt162", "L163", "nfilt163", "L156", "nfilt156", "L157", "nfilt157", "L158", "nfilt158", "L159", "nfilt159", "L160", "nfilt160", "L135", "nfilt135", "L136", "nfilt136", "L137", "nfilt137", "L138", "nfilt138", "L139", "nfilt139", "L270", "nfilt270", "L271", "nfilt271", "L272", "nfilt272", "L273", "nfilt273", "L274", "nfilt274","L275", "nfilt275"]
+
+# df = pd.read_csv('/home/siqi/TPAGB/database/matching_galaxies_aegis_20200303_PSB.csv', sep=',')
+# df = pd.read_csv('/home/siqi/TAPS/source_list/matching_galaxies_aegis_20200303_20200317_diff_PSB.csv', sep=',')
+df = pd.read_csv('/home/siqi/TAPS/TAPS/source_list/matching_galaxies_aegis_20200317_PSB.csv', sep=',')
 df.columns=['detector','ID','region','filename','chip']
 
-df_photometry=pd.read_csv('/home/siqi/goodss_3dhst.v4.1.cats/Catalog/goodss_3dhst.v4.1.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
-df_photometry.columns=["id", "x", "y", "ra", "dec", "faper_F160W", "eaper_F160W", "faper_F140W", "eaper_F140W", "f_F160W", "e_F160W", "w_F160W",\
-                        "f_U38", "e_U38", "w_U38","f_U", "e_U", "w_U","f_F435W", "e_F435W", "w_F435W", "f_B", "e_B", "w_B", "f_V", "e_V", "w_V", \
-                        "f_F606Wcand", "e_F606Wcand", "w_F606Wcand","f_F606W", "e_F606W","w_F606W","f_R", "e_R", "w_R", "f_Rc", "e_Rc", "w_Rc", \
-                        "f_F775W", "e_F775W", "w_F775W","f_I", "e_I", "w_I", "f_F814Wcand", "e_F814Wcand", "w_F814Wcand", "f_F850LP", "e_F850LP", "w_F850LP",\
-                        "f_F850LPcand", "e_F850LPcand", "w_F850LPcand", "f_F125W", "e_F125W", "w_F125W","f_J", "e_J", "w_J", "f_tenisJ", "e_tenisJ", "w_tenisJ",\
-                        "f_F140W", "e_F140W", "w_F140W","f_H", "e_H", "w_H", "f_tenisK", "e_tenisK", "w_tenisK","f_Ks", "e_Ks", "w_Ks",\
-                        "f_IRAC1", "e_IRAC1", "w_IRAC1", "f_IRAC2", "e_IRAC2", "w_IRAC2", "f_IRAC3", "e_IRAC3", "w_IRAC3", "f_IRAC4", "e_IRAC4", "w_IRAC4",\
-                        "f_IA427", "e_IA427", "f_IA445", "e_IA445", "f_IA505", "e_IA505", "f_IA527", "e_IA527", "f_IA550", "e_IA550", "f_IA574", "e_IA574",\
-                        "f_IA598", "e_IA598", "f_IA624", "e_IA624", "f_IA651", "e_IA651", "f_IA679", "e_IA679", "f_IA738", "e_IA738", "f_IA767", "e_IA767",\
-                        "f_IA797", "e_IA797", "f_IA856", "e_IA856", "tot_cor", "wmin_ground", "wmin_hst","wmin_wfc3", "wmin_irac", "z_spec", "star_flag",\
-                        "kron_radius","a_image", "b_image", "theta_J2000", "class_star", "flux_radius", "fwhm_image", "flags", "IRAC1_contam", "IRAC2_contam",\
-                         "IRAC3_contam", "IRAC4_contam", "contam_flag","f140w_flag", "use_phot", "near_star", "nexp_f125w", "nexp_f140w", "nexp_f160w"]
+df_photometry=pd.read_csv('/home/siqi/aegis_3dhst.v4.1.cats/Catalog/aegis_3dhst.v4.1.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_photometry.columns=["id", "x", "y", "ra", "dec", "faper_F160W", "eaper_F160W", "faper_F140W", "eaper_F140W", "f_F160W", "e_F160W", "w_F160W", "f_U", "e_U", "w_U","f_G", "e_G", "w_G", "f_F606W", "e_F606W","w_F606W", "f_R", "e_R", "w_R", "f_I", "e_I", "w_I", "f_F814W", "e_F814W", "w_F814W", "f_Z", "e_Z", "w_Z", "f_F125W", "e_F125W", "w_F125W", "f_J1", "e_J1", "w_J1", "f_J2", "e_J2", "w_J2", "f_J3", "e_J3", "w_J3", "f_J", "e_J", "w_J", "f_F140W", "e_F140W", "w_F140W","f_H1", "e_H1", "w_H1", "f_H2", "e_H2", "w_H2", "f_H", "e_H", "w_H", "f_K", "e_K", "w_K", "f_Ks", "e_Ks", "w_Ks", "f_IRAC1", "e_IRAC1", "w_IRAC1", "f_IRAC2", "e_IRAC2", "w_IRAC2", "f_IRAC3", "e_IRAC3", "w_IRAC3", "f_IRAC4", "e_IRAC4", "w_IRAC4", "tot_cor", "wmin_ground", "wmin_hst", "wmin_irac", "wmin_wfc3", "z_spec", "star_flag",  "kron_radius","a_image", "b_image", "theta_J2000", "class_star", "flux_radius", "fwhm_image","flags", "IRAC1_contam", "IRAC2_contam", "IRAC3_contam", "IRAC4_contam", "contam_flag", "f140w_flag", "use_phot", "near_star", "nexp_f125w", "nexp_f140w", "nexp_f160w"]
 
-df_fast = pd.read_csv('/home/siqi/goodss_3dhst.v4.1.cats/Fast/goodss_3dhst.v4.1.fout', delim_whitespace=True,header=None,comment='#',index_col=False)
+df_fast = pd.read_csv('/home/siqi/aegis_3dhst.v4.1.cats/Fast/aegis_3dhst.v4.1.fout', delim_whitespace=True,header=None,comment='#',index_col=False)
 df_fast.columns = ['id', 'z', 'ltau', 'metal','lage','Av','lmass','lsfr','lssfr','la2t','chi2']
 
 
 # ###  Ma05
-norm_wavelength= 5500.0
-df_Ma = pd.read_csv('/home/siqi/M09_ssp_pickles.sed', delim_whitespace=True, header=None, comment='#',index_col=False)# only solar metallicity is contained in this catalogue
+norm_wavelength= 5500.0#7350.0
+df_Ma = pd.read_csv('/home/siqi/M09_ssp_pickles.sed',delim_whitespace=True,header=None, comment='#',index_col=False)# only solar metallicity is contained in this catalogue
 df_Ma.columns = ['Age','ZH','l','Flambda']
 age = df_Ma.Age
 metallicity = df_Ma.ZH
@@ -76,10 +66,11 @@ Flux_1Gyr = Flux[age_1Gyr_index]
 F_5500_1Gyr_index=np.where(wavelength_1Gyr==norm_wavelength)[0]
 F_5500_1Gyr = Flux_1Gyr[wavelength_1Gyr==norm_wavelength].values # this is the band to be normalized 
 
-
+# ### M13
 df_M13 = pd.read_csv('/home/siqi/M13_models/sed_M13.ssz002',delim_whitespace=True,header=None,comment='#',index_col=False)
 df_M13.columns = ['Age','ZH','l','Flambda']
 age_M13 = df_M13.Age
+#print(df_M13.Age.unique())
 metallicity_M13 = df_M13.ZH
 wavelength_M13 = df_M13.l
 Flux_M13 = df_M13.Flambda
@@ -91,8 +82,7 @@ Flux_1Gyr_M13 = Flux_M13[age_1Gyr_index_M13]
 F_5500_1Gyr_index_M13=np.where(abs(wavelength_1Gyr_M13-norm_wavelength)<15)[0]
 F_5500_1Gyr_M13 = 0.5*(Flux_1Gyr_M13.loc[62271+F_5500_1Gyr_index_M13[0]]+Flux_1Gyr_M13.loc[62271+F_5500_1Gyr_index_M13[1]])
 
-
-# ### BC03
+### BC
 df_BC = pd.read_csv('/home/siqi/ssp_900Myr_z02.spec',delim_whitespace=True,header=None,comment='#',index_col=False)
 df_BC.columns=['Lambda','Flux']
 wavelength_BC = df_BC.Lambda
@@ -117,26 +107,8 @@ for i in range(221):
     BC03_flux_array[i,:] = BC03_flux_list[i].split()[1:]
     BC03_flux_array[i,:] = BC03_flux_array[i,:]/BC03_flux_array[i,2556]# Normalize the flux
 
+tok2 = time.clock()
 
-def read_spectra(row):
-    """
-    region: default 1 means the first region mentioned in the area, otherwise, the second region/third region
-    """
-    detector=df.detector[row]
-    region = df.region[row]
-    chip = df.chip[row]
-    ID = df.ID[row]
-    redshift_1=df_cat.loc[ID-1].z_best
-    mag = -2.5*np.log10(df_cat.loc[ID-1].L161)+25#+0.02
-    #print mag
-    #WFC3 is using the infrared low-resolution grism, and here we are using the z band
-    if detector == 'WFC3':
-        filename="/home/siqi/GOODSS_WFC3_V4.1.5/goodss-"+"{0:02d}".format(region)+"/1D/ASCII/goodss-"+"{0:02d}".format(region)+"-G141_"+"{0:05d}".format(ID)+".1D.ascii"
-        OneD_1 = np.loadtxt(filename,skiprows=1)
-    if detector =="ACS":
-        filename="/home/siqi/GOODSS_ACS_V4.1.5/acs-goodss-"+"{0:02d}".format(region)+"/1D/FITS/"+df.filename[row]
-        OneD_1 = fits.getdata(filename, ext=1)
-    return ID, OneD_1,redshift_1, mag
 def Lick_index_ratio(wave, flux, band=3):
     if band == 3:
         blue_min = 1.06e4  # 1.072e4#
@@ -171,10 +143,51 @@ def Lick_index_ratio(wave, flux, band=3):
     # ratio_err = np.sqrt(np.sum(1/red_flux**2*blue_flux_err**2)+np.sum((blue_flux/red_flux**2*red_flux_err)**2))
 
     return ratio  # , ratio_err
+
+def read_spectra(row):
+    """
+    region: default 1 means the first region mentioned in the area, otherwise, the second region/third region
+    return the ID, OneD_1, redshift_1, mag    
+    """
+    detector=df.detector[row]
+    region = df.region[row]
+    chip = df.chip[row]
+    ID = df.ID[row]
+    redshift_1=df_cat.iloc[ID-1].z_best
+    mag = -2.5*np.log10(df_cat.iloc[ID-1].L161)+25#J_band
+    #print mag
+    #WFC3 is using the infrared low-resolution grism, and here we are using the z band
+    if detector == 'WFC3':
+        filename="/home/siqi/AEGIS_WFC3_V4.1.5/aegis-"+"{0:02d}".format(region)+"/1D/ASCII/aegis-"+"{0:02d}".format(region)+"-G141_"+"{0:05d}".format(ID)+".1D.ascii"
+        OneD_1 = np.loadtxt(filename,skiprows=1)
+    if detector =="ACS":
+        filename="/home/siqi/AEGIS_ACS_V4.1.5/acs-aegis-"+"{0:02d}".format(region)+"/1D/FITS/"+df.filename[row]
+        OneD_1 = fits.getdata(filename, ext=1)
+    return ID, OneD_1,redshift_1, mag
+def OneD_index(x, y):
+    """
+    To calculate the spectral index
+    """
+    band1 = x[np.where(x>=1.06e4)[0]] 
+    band1 = band1.iloc[np.where(band1_M05<=1.07e4)[0]]
+    band1_index = band1.index
+    band1_flux = Flux.loc[band1_index]
+def reduced_chi_square(data_wave, data, data_err, model_wave, model):
+    n = len(data_wave)
+    chi_square = 0
+    for i in range(n):
+        index = find_nearest(model_wave, data_wave[i])#print index
+        # model_interp = interpolate.interp1d(model_wave,model)
+        # model_flux = model_interp(data_wave[i])
+        model_flux = np.interp(data_wave[i],model[index-1],model[index+1])
+        chi_square += (data[i]-model_flux)**2/(data_err[i]**2)
+        # print('chisquare processes',i,chi_square)
+    reduced_chi_square = chi_square/n
+    return reduced_chi_square
 def binning_spec_keep_shape(wave,flux,bin_size):
     wave_binned = wave
     flux_binned = np.zeros(len(wave))
-    for i in range((int(len(wave)/bin_size))+1):
+    for i in range((int(len(wave)/bin_size))):
         flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
     return wave_binned, flux_binned#, flux_err_binned
 def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod, A_v):
@@ -182,79 +195,56 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
     OneD_1 is the oneD spectra
     redshift_1 is the redshift of the spectra
     rownumber is the row number in order to store the spectra
+    
+    Return:
+    * redshift corrected normed derived spectra
+    * redshift corrected normed derived photometry 
     """
     region = df.region[rownumber]
     ID = df.ID[rownumber]
     n = len(OneD_1)
-    age =10**(df_fast.loc[ID-1].lage)/1e9 ## in Gyr
+    age = 10**(df_fast.loc[ID-1].lage)/1e9 ## in Gyr
     metal = df_fast.loc[ID-1].metal
     sfr = 10**(df_fast.loc[ID-1].lsfr)
-    intrinsic_Av = df_fast.loc[ID-1].Av   
+    intrinsic_Av = df_fast.loc[ID-1].Av
     
-    norm_factor_BC = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/1)
+    # Normalize and smooth the models, smoothing BC to delta_lambda =14, smoothing Ma05 to be delta_lambda = 10
+    norm_factor_BC = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/1.)
     norm_limit_BC = int(5930/norm_factor_BC)*norm_factor_BC+400
     smooth_wavelength_BC_1 = wavelength_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
     smooth_wavelength_BC = np.hstack([smooth_wavelength_BC_1,wavelength_BC[norm_limit_BC:]])
-
     smooth_Flux_BC_1 = Flux_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
     smooth_Flux_BC = np.hstack([smooth_Flux_BC_1,Flux_BC[norm_limit_BC:]])/Flux_BC_norm.values[0]
     
-    norm_factor_Ma = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/5)
+    norm_factor_Ma = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/5.)
     norm_limit_Ma = int(4770/norm_factor_Ma)*norm_factor_Ma
     smooth_wavelength_Ma = wavelength_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)
     smooth_Flux_Ma_1Gyr = Flux_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)/F_5500_1Gyr
-
-    # Normalize the flux
-    if redshift_1<=0.1:
-        i = 12
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA574: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.2:
-        i = 13
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA624: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.3:
-        i = 15
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA679: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.4:
-        i = 16
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA738: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.5:
-        i = 18
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA797: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    elif redshift_1<=0.6:
-        i = 19
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at IA856: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
-    else:
-        i = 26
-        temp_norm_wave = wave_list[i]#/(1+redshift_1)
-        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
-        norm_band = photometric_flux[i] 
-        #plt.text(5000,0.55,'normalized at F850LPcand: rest frame '+"{0:.2f}".format(temp_norm_wave),fontsize=16)
-        #plt.axvline(temp_norm_wave,linewidth=2,color='b')
     
+    
+    # Select the right normalization band    
+    if redshift_1 <= 0.10:
+        temp_norm_wave = wave_list[5]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[5]#F606W
+    elif redshift_1 <= 0.22:
+        temp_norm_wave = wave_list[2]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[2]#r
+    elif redshift_1 <= 0.42:
+        temp_norm_wave = wave_list[3]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[3]#i
+    elif redshift_1 <= 0.55:
+        temp_norm_wave = wave_list[6]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[6]#F814W
+    else:
+        temp_norm_wave = wave_list[4]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[4]#i
+
+
     x = np.zeros(n)
     y = np.zeros(n)
     y_err = np.zeros(n)
@@ -270,10 +260,8 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
         y[i] = (OneD_1[i][1]-OneD_1[i][3])/OneD_1[i][6]*spectra_flux_correction#/Flux_0 # (flux-contamination)/sensitivity
         y_err[i] = OneD_1[i][2]/OneD_1[i][6]*spectra_flux_correction#/Flux_0
         sensitivity[i] = OneD_1[i][6]
-    # end_index = np.argmin(np.diff(sensitivity[263:282],2)[1:],0)+263
-    # start_index = np.argmin(np.diff(sensitivity[40:50],2)[1:])+42
-    start_index = np.argmin(abs(x*(1+redshift_1)-11407.53))
-    end_index = np.argmin(abs(x*(1+redshift_1)-16428.61))
+    end_index = np.argmin(np.diff(sensitivity[263:282],2)[1:],0)+263
+    start_index = np.argmin(np.diff(sensitivity[40:50],2)[1:])+42
 
     print('masking region:',x[start_index]*(1+redshift_1),x[end_index]*(1+redshift_1),start_index,end_index)
     # plt.plot(x*(1+redshift_1),sensitivity,color='k')
@@ -283,7 +271,7 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
     y = y[start_index:end_index]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
     y_err = y_err[start_index:end_index]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
     print('after masking',len(x))
-    
+
     # mask_non_neg_photo = np.where(photometric_flux>0)
     # wave_list = wave_list[mask_non_neg_photo]
     # band_list = band_list[mask_non_neg_photo]
@@ -291,8 +279,8 @@ def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, ban
     # photometric_flux_err = photometric_flux_err[mask_non_neg_photo]
     # photometric_flux_err_mod = photometric_flux_err_mod[mask_non_neg_photo]
 
-    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band, photometric_flux_err_mod/norm_band        
 
+    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band, photometric_flux_err_mod/norm_band        
 
 columns = ['ID','region','field',
           'M05_age_opt','M05_AV_opt','M13_age_opt','M13_AV_opt','BC_age_opt','BC_AV_opt',\
@@ -303,9 +291,6 @@ columns = ['ID','region','field',
           'model','grism_index','grism_index_AV_corr','age_opt','age_opt_std','AV_opt','AV_opt_std']
 chi_square_list = pd.DataFrame(index=df.index,columns=columns)
 chi_square_list_final = pd.DataFrame(index=df.index,columns=columns)
-
-weight1 = 1./2.575
-weight2 = 1./1.153
 
 ## Prepare the M05 models and store in the right place
 M05_model = []
@@ -332,6 +317,10 @@ for i in range(32,46):
     fn2 = '/home/siqi/SSP_models/new/M05_age_'+split_galaxy_age_string[0]+'_Av_00_z002.csv'
     M05_model = np.loadtxt(fn2)
     M05_model_list.append(M05_model)
+print(len(M05_model_list))
+
+weight1 = 1./2.575
+weight2 = 1./1.153
 
 
 ## Prepare the M13 models and store in the right place
@@ -373,6 +362,144 @@ def binning_spec_keep_shape_x(wave,flux,flux_err,bin_size):
     for i in range((int(len(wave)/bin_size))+1):
         flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
         flux_err_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux_err[bin_size*i:bin_size*(i+1)])
+    # print('last index',i, len(wave),int(len(wave)/bin_size), bin_size*(i+1), flux_err_binned[bin_size*i:bin_size*(i+1)], flux_err_binned[-2:])
+    return wave_binned, flux_binned, flux_err_binned
+def read_spectra(row):
+    """
+    region: default 1 means the first region mentioned in the area, otherwise, the second region/third region
+    return the ID, OneD_1, redshift_1, mag    
+    """
+    detector=df.detector[row]
+    region = df.region[row]
+    chip = df.chip[row]
+    ID = df.ID[row]
+    redshift_1=df_cat.iloc[ID-1].z_best
+    mag = -2.5*np.log10(df_cat.iloc[ID-1].L161)+25#J_band
+    #print mag
+    #WFC3 is using the infrared low-resolution grism, and here we are using the z band
+    if detector == 'WFC3':
+        filename="/home/siqi/AEGIS_WFC3_V4.1.5/aegis-"+"{0:02d}".format(region)+"/1D/ASCII/aegis-"+"{0:02d}".format(region)+"-G141_"+"{0:05d}".format(ID)+".1D.ascii"
+        OneD_1 = np.loadtxt(filename,skiprows=1)
+    if detector =="ACS":
+        filename="/home/siqi/AEGIS_ACS_V4.1.5/acs-aegis-"+"{0:02d}".format(region)+"/1D/FITS/"+df.filename[row]
+        OneD_1 = fits.getdata(filename, ext=1)
+    return ID, OneD_1,redshift_1, mag
+def OneD_index(x, y):
+    """
+    To calculate the spectral index
+    """
+    band1 = x[np.where(x>=1.06e4)[0]] 
+    band1 = band1.iloc[np.where(band1_M05<=1.07e4)[0]]
+    band1_index = band1.index
+    band1_flux = Flux.loc[band1_index]
+def binning_spec_keep_shape(wave,flux,bin_size):
+    wave_binned = wave
+    flux_binned = np.zeros(len(wave))
+    for i in range((int(len(wave)/bin_size))):
+        flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
+    return wave_binned, flux_binned#, flux_err_binned
+def derive_1D_spectra_Av_corrected(OneD_1, redshift_1, rownumber, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod, A_v):
+    """
+    OneD_1 is the oneD spectra
+    redshift_1 is the redshift of the spectra
+    rownumber is the row number in order to store the spectra
+    
+    Return:
+    * redshift corrected normed derived spectra
+    * redshift corrected normed derived photometry 
+    """
+    region = df.region[rownumber]
+    ID = df.ID[rownumber]
+    n = len(OneD_1)
+    age = 10**(df_fast.loc[ID-1].lage)/1e9 ## in Gyr
+    metal = df_fast.loc[ID-1].metal
+    sfr = 10**(df_fast.loc[ID-1].lsfr)
+    intrinsic_Av = df_fast.loc[ID-1].Av
+    
+    # Normalize and smooth the models, smoothing BC to delta_lambda =14, smoothing Ma05 to be delta_lambda = 10
+    norm_factor_BC = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/1.)
+    norm_limit_BC = int(5930/norm_factor_BC)*norm_factor_BC+400
+    smooth_wavelength_BC_1 = wavelength_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
+    smooth_wavelength_BC = np.hstack([smooth_wavelength_BC_1,wavelength_BC[norm_limit_BC:]])
+    smooth_Flux_BC_1 = Flux_BC[400:norm_limit_BC].values.reshape(-1,norm_factor_BC).mean(axis=1)
+    smooth_Flux_BC = np.hstack([smooth_Flux_BC_1,Flux_BC[norm_limit_BC:]])/Flux_BC_norm.values[0]
+    
+    norm_factor_Ma = int((OneD_1[int(n/2+1)][0]-OneD_1[int(n/2)][0])/(1+redshift_1)/5.)
+    norm_limit_Ma = int(4770/norm_factor_Ma)*norm_factor_Ma
+    smooth_wavelength_Ma = wavelength_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)
+    smooth_Flux_Ma_1Gyr = Flux_1Gyr[:norm_limit_Ma].values.reshape(-1,norm_factor_Ma).mean(axis=1)/F_5500_1Gyr
+    
+    
+    # Select the right normalization band    
+    if redshift_1 <= 0.10:
+        temp_norm_wave = wave_list[5]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[5]#F606W
+    elif redshift_1 <= 0.22:
+        temp_norm_wave = wave_list[2]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[2]#r
+    elif redshift_1 <= 0.42:
+        temp_norm_wave = wave_list[3]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[3]#i
+    elif redshift_1 <= 0.55:
+        temp_norm_wave = wave_list[6]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[6]#F814W
+    else:
+        temp_norm_wave = wave_list[4]#/(1+redshift_1)
+        index_wave_norm = find_nearest(smooth_wavelength_BC,temp_norm_wave)
+        norm_band = photometric_flux[4]#i
+
+
+    x = np.zeros(n)
+    y = np.zeros(n)
+    y_err = np.zeros(n)
+    sensitivity = np.zeros(n)
+    for i in range(0,n):
+        x[i] = OneD_1[i][0]#/(1+redshift_1)
+    print('wavelength range:',x[0],x[-1])
+    spectra_extinction = calzetti00(x, A_v, 4.05)
+
+    for i in range(n):
+        spectra_flux_correction = 10**(0.4*spectra_extinction[i])# from obs to obtain the true value: the absolute value
+        x[i] = x[i]/(1+redshift_1)
+        y[i] = (OneD_1[i][1]-OneD_1[i][3])/OneD_1[i][6]*spectra_flux_correction#/Flux_0 # (flux-contamination)/sensitivity
+        y_err[i] = OneD_1[i][2]/OneD_1[i][6]*spectra_flux_correction#/Flux_0
+        sensitivity[i] = OneD_1[i][6]
+    # end_index = np.argmin(np.diff(sensitivity[263:282],2)[1:],0)+263
+    # start_index = np.argmin(np.diff(sensitivity[40:50],2)[1:])+42
+
+    start_index = np.argmin(abs(x*(1+redshift_1)-11407.53))
+    end_index = np.argmin(abs(x*(1+redshift_1)-16428.61))
+    print('masking region:',x[start_index]*(1+redshift_1),x[end_index]*(1+redshift_1),start_index,end_index)
+    # plt.plot(x*(1+redshift_1),sensitivity,color='k')
+    # plt.plot(x[start_index:end_index]*(1+redshift_1),sensitivity[start_index:end_index],color='red')
+    print('before masking',len(x))
+    x = x[start_index:end_index]#[int(n*2/10):int(n*8/10)]
+    y = y[start_index:end_index]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+    y_err = y_err[start_index:end_index]*1e-17/norm_band#[int(n*2/10):int(n*8/10)]*1e-17/norm_band
+    print('after masking',len(x))
+
+
+    # mask_non_neg_photo = np.where(photometric_flux>0)
+    # wave_list = wave_list[mask_non_neg_photo]
+    # band_list = band_list[mask_non_neg_photo]
+    # photometric_flux = photometric_flux[mask_non_neg_photo]
+    # photometric_flux_err = photometric_flux_err[mask_non_neg_photo]
+    # photometric_flux_err_mod = photometric_flux_err_mod[mask_non_neg_photo]
+
+
+    return x, y, y_err, wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux/norm_band, photometric_flux_err/norm_band, photometric_flux_err_mod/norm_band        
+def binning_spec_keep_shape_x(wave,flux,flux_err,bin_size):
+    wave_binned = wave
+    flux_binned = np.zeros(len(wave))
+    flux_err_binned = np.zeros(len(wave))
+    for i in range((int(len(wave)/bin_size))+1):
+        flux_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux[bin_size*i:bin_size*(i+1)])
+        flux_err_binned[bin_size*i:bin_size*(i+1)] = np.mean(flux_err[bin_size*i:bin_size*(i+1)])
+    # print('last index',i, len(wave),int(len(wave)/bin_size), bin_size*(i+1), flux_err_binned[bin_size*i:bin_size*(i+1)], flux_err_binned[-2:])
     return wave_binned, flux_binned, flux_err_binned
 
 def minimize_age_AV_vector_weighted(X):
@@ -1543,6 +1670,8 @@ def reduced_chi_square_obs_BC(data_wave, data, data_err, model_wave, model, samp
     reduced_chi_square = chi_square/dof
     
     return reduced_chi_square
+
+
 def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod):
     """
     work in the observed frame
@@ -1551,7 +1680,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     model_wave = model_wave*(1+redshift_1)
     model_flux = model_flux
 
-    filter_array_index= np.arange(1,37)
+    filter_array_index= np.arange(1,20)
 
     #    SNR Mask
     mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
@@ -1563,6 +1692,8 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 
     photometry_list = np.zeros(len(photometric_flux))
     photometry_list_index = 0
+    # print('len photometry:',len(photometry_list))
+
     # print('masked filter array index:',filter_array_index)
     
     for i in filter_array_index:
@@ -1602,7 +1733,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
                         sum_transmission += transmission[j]*wave_inter[j]
                         length = length+1
                 except:
-                    print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
+                    print('Error',n, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
                      
         elif n==1:
             flambda_AB_K = flux[0]*transmission[0]
@@ -1617,6 +1748,7 @@ def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
         photometry_list_index += 1
 
     chisquare_photo_list = ((photometric_flux-photometry_list)/photometric_flux_err_mod)**2
+    # print(len(wave_list), len(photometry_list))
     plt.scatter(wave_list,photometry_list, s=40, color='green')
 
     tok = time.clock()
@@ -1632,7 +1764,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
     model_wave = model_wave*(1+redshift_1)
     model_flux = model_flux
 
-    filter_array_index= np.arange(1,37)
+    filter_array_index= np.arange(1,20)
 
     #    SNR Mask
     mask_SNR3_photo = np.where(photometric_flux/photometric_flux_err>3.)
@@ -1684,7 +1816,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
                         sum_transmission += transmission[j]*wave_inter[j]
                         length = length+1
                 except:
-                    print('Error',n,transmission_index, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
+                    print('Error',n, j,wave[j],filter_curve[0,0],filter_curve[-1,0])
                      
         elif n==1:
             flambda_AB_K = flux[0]*transmission[0]
@@ -1708,24 +1840,21 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 
     return photometry_list
 
-
-
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date = '20200702'
-plot_dir = 'plot/'+str(date)+'_goodss/'
-
+date='20200702'
+plot_dir = 'plot/'+date+'_aegis/'
 
 ## Prepare the filter curves
 tik = time.time()
 filter_fn_list = []
 filter_curve_list=[]
 filter_curve_fit_list=[]
-path = "/home/siqi/TAPS/TAPS/filter/goodss/"
+path = "/home/siqi/TAPS/TAPS/filter/aegis/"
 import glob, os
 os.chdir(path)
-for i in range(1,37):
+for i in range(1,20):
     for file in glob.glob("f"+str(i)+"_*"):
         print(file)
         fn = path+file
@@ -1734,10 +1863,13 @@ for i in range(1,37):
     filter_curve_list.append(filter_curve)
     filter_f = interpolate.interp1d(filter_curve[:,0], filter_curve[:,1])
     filter_curve_fit_list.append(filter_f)
+
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
+
 for i in range(len(df)):
+    # negative photometry based on 20200303: 0, 6,7,8,9,10, 11，15, 16,17,18,19,20,22，,23,24,28,30
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -1750,251 +1882,137 @@ for i in range(len(df)):
     print('intrinsic Av:'+str(intrinsic_Av))
     galaxy_age = 10**(df_fast.loc[ID-1].lage)/1e9
     print('Galaxy age:', galaxy_age)
-    A_v=0.0207    
+    A_v=0.0204    
     c=3e10
 
-    smoothing_deltal=46.5/(1+redshift_1)#*df_photometry[df_photometry.id==ID].flux_radius#787.245
-    print('smoothing_deltal',smoothing_deltal)
+    smoothing_deltal=46.5/(1+redshift_1)*1.0
+    delta_l_grism=smoothing_deltal
+    #*df_photometry[df_photometry.id==ID].b_image.values[0]#/(1+redshift_1)#787.245
+    # delta_l_grism =5500./130
+    # kernel_M05_opt = np.sqrt(delta_l_grism**2-5**2)
+    # print(delta_l_grism, kernel_M05_opt)
 
+    # gauss_kernel = Gaussian1DKernel(kernel_M05_opt)
+    # smooth_Flux_Ma_1Gyr_new = convolve(Flux_1Gyr/F_5500_1Gyr, gauss_kernel)
+
+    print('smoothing_deltal',smoothing_deltal)
     
     chi_square_list.loc[row,'ID'] = float(ID)
     chi_square_list.loc[row,'region'] = region
-    chi_square_list.loc[row,'field'] = 'goodss'
-
+    chi_square_list.loc[row,'field'] = 'aegis'
 # Photometry
-    # ESO GOODS  |  Nonino et al. 2009
-    # Paranal_VIMOS U and VIMOS R
-    U_wave = 3722
-    U_band = 375.5/2.
-    U = df_photometry.loc[ID_no].f_U/((U_wave)**2)*c*1e8*3.63e-30
-    U_err = df_photometry.loc[ID_no].e_U/((U_wave)**2)*c*1e8*3.63e-30
+    #   CFHT Legacy Survey, from COSMOS filter set page.
+    u_wave = 3823.29
+    u_band = 825.2/2
+    u = df_photometry.loc[ID_no].f_U/((u_wave)**2)*c*1e8*3.63e-30
+    u_err = df_photometry.loc[ID_no].e_U/((u_wave)**2)*c*1e8*3.63e-30
 
-    R_wave = 6449.7
-    R_band = 1286.3/2.
-    R = df_photometry.loc[ID_no].f_R/((R_wave)**2)*c*1e8*3.63e-30
-    R_err = df_photometry.loc[ID_no].e_R/((R_wave)**2)*c*1e8*3.63e-30
-    
-    
-    #  GaBoDs     | Hildebrandt et al. 2006, Erben 2005      
-    # LaSilla WFI ESO 841-845.dat
-    U38_wave = 3706 # ESO 841
-    U38_band = 357./2.
-    U38 = df_photometry.loc[ID_no].f_U38/((U38_wave)**2)*c*1e8*3.63e-30
-    U38_err = df_photometry.loc[ID_no].e_U38/((U38_wave)**2)*c*1e8*3.63e-30
+    g_wave = 4877.37
+    g_band = 1486.4/2
+    g = df_photometry.loc[ID_no].f_G/((g_wave)**2)*c*1e8*3.63e-30
+    g_err = df_photometry.loc[ID_no].e_G/((g_wave)**2)*c*1e8*3.63e-30 
 
-    B_wave = 4554 # 842
-    B_band = 915./2.
-    B = df_photometry.loc[ID_no].f_B/((B_wave)**2)*c*1e8*3.63e-30
-    B_err = df_photometry.loc[ID_no].e_B/((B_wave)**2)*c*1e8*3.63e-30
+    r_wave = 6230.62
+    r_band = 1447./2
+    r = df_photometry.loc[ID_no].f_R/((r_wave)**2)*c*1e8*3.63e-30
+    r_err = df_photometry.loc[ID_no].e_R/((r_wave)**2)*c*1e8*3.63e-30
 
-    V_wave = 5343 #843
-    V_band = 900./2.
-    V = df_photometry.loc[ID_no].f_V/((V_wave)**2)*c*1e8*3.63e-30
-    V_err = df_photometry.loc[ID_no].e_V/((V_wave)**2)*c*1e8*3.63e-30
+    i_wave = 7617.66
+    i_band = 1521.7/2
+    i = df_photometry.loc[ID_no].f_I/((i_wave)**2)*c*1e8*3.63e-30
+    i_err = df_photometry.loc[ID_no].e_I/((i_wave)**2)*c*1e8*3.63e-30
 
-    Rc_wave = 6411 #844
-    Rc_band = 1602./2.
-    Rc = df_photometry.loc[ID_no].f_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
-    Rc_err = df_photometry.loc[ID_no].e_Rc/((Rc_wave)**2)*c*1e8*3.63e-30
+    z_wave = 8827.98
+    z_band = 1513.2/2
+    z = df_photometry.loc[ID_no].f_Z/((z_wave)**2)*c*1e8*3.63e-30
+    z_err = df_photometry.loc[ID_no].e_Z/((z_wave)**2)*c*1e8*3.63e-30
 
-    I_wave = 8554 # 845
-    I_band = 1504./2.
-    I = df_photometry.loc[ID_no].f_I/((I_wave)**2)*c*1e8*3.63e-30
-    I_err = df_photometry.loc[ID_no].e_I/((I_wave)**2)*c*1e8*3.63e-30
-    
-    
-    # MUSYC      | Cardamone et al. 2010                 
-    #f_IA427 e_IA427 f_IA445 e_IA445 f_IA505 e_IA505 f_IA527 e_IA527 f_IA550 e_IA550 f_IA574 
-    #e_IA574 f_IA598 e_IA598 f_IA624 e_IA624 f_IA651 e_IA651 f_IA679 e_IA679 f_IA738 e_IA738 
-    #f_IA767 e_IA767 f_IA797 e_IA797 f_IA856 e_IA856 
-    # IA427: 4253, IA445: 4445, IA464: 4631, IA484: 4843, IA505: 5059, IA527: 5256, IA550: 5492, IA574: 5760
-    # IA598: 6003, IA624: 6227, IA651: 6491, IA679: 6778, IA709: 7070, IA738: 7356, IA768: 7676, IA797: 7962
-    # IA827:8243, IA856:8562
-    IA427_wave = 4253
-    IA427_band = 210./2.
-    IA427 = df_photometry.loc[ID_no].f_IA427/IA427_wave**2*c*1e8*3.63e-30
-    IA427_err = df_photometry.loc[ID_no].e_IA427/IA427_wave**2*c*1e8*3.63e-30
-    
-    IA445_wave = 4445
-    IA445_band = 204./2.
-    IA445 = df_photometry.loc[ID_no].f_IA445/IA445_wave**2*c*1e8*3.63e-30
-    IA445_err = df_photometry.loc[ID_no].e_IA427/IA445_wave**2*c*1e8*3.63e-30
-    
-    IA505_wave = 5059
-    IA505_band = 234./2.
-    IA505 = df_photometry.loc[ID_no].f_IA505/IA505_wave**2*c*1e8*3.63e-30
-    IA505_err = df_photometry.loc[ID_no].e_IA505/IA505_wave**2*c*1e8*3.63e-30
-    
-    IA527_wave = 5256
-    IA527_band = 243./2.
-    IA527 = df_photometry.loc[ID_no].f_IA527/IA527_wave**2*c*1e8*3.63e-30
-    IA527_err = df_photometry.loc[ID_no].e_IA527/IA527_wave**2*c*1e8*3.63e-30
-    
-    IA550_wave = 5492
-    IA550_band = 276./2.
-    IA550 = df_photometry.loc[ID_no].f_IA550/IA550_wave**2*c*1e8*3.63e-30
-    IA550_err = df_photometry.loc[ID_no].e_IA550/IA550_wave**2*c*1e8*3.63e-30
-    
-    IA574_wave = 5760
-    IA574_band = 276./2.
-    IA574 = df_photometry.loc[ID_no].f_IA574/IA574_wave**2*c*1e8*3.63e-30
-    IA574_err = df_photometry.loc[ID_no].e_IA574/IA574_wave**2*c*1e8*3.63e-30
-    
-    IA598_wave = 6003
-    IA598_band = 297./2.
-    IA598 = df_photometry.loc[ID_no].f_IA598/IA598_wave**2*c*1e8*3.63e-30
-    IA598_err = df_photometry.loc[ID_no].e_IA598/IA598_wave**2*c*1e8*3.63e-30
-    
-    IA624_wave = 6227
-    IA624_band = 300./2.
-    IA624 = df_photometry.loc[ID_no].f_IA624/IA624_wave**2*c*1e8*3.63e-30
-    IA624_err = df_photometry.loc[ID_no].e_IA624/IA624_wave**2*c*1e8*3.63e-30
-    
-    IA651_wave = 6491
-    IA651_band = 324./2.
-    IA651 = df_photometry.loc[ID_no].f_IA651/IA651_wave**2*c*1e8*3.63e-30
-    IA651_err = df_photometry.loc[ID_no].e_IA651/IA651_wave**2*c*1e8*3.63e-30
-    
-    IA679_wave = 6778
-    IA679_band = 339./2.
-    IA679 = df_photometry.loc[ID_no].f_IA679/IA679_wave**2*c*1e8*3.63e-30
-    IA679_err = df_photometry.loc[ID_no].e_IA679/IA679_wave**2*c*1e8*3.63e-30
-    
-    IA738_wave = 7356
-    IA738_band = 324./2.
-    IA738 = df_photometry.loc[ID_no].f_IA738/IA738_wave**2*c*1e8*3.63e-30
-    IA738_err = df_photometry.loc[ID_no].e_IA738/IA738_wave**2*c*1e8*3.63e-30
-    
-    IA767_wave = 7676
-    IA767_band = 366./2.
-    IA767 = df_photometry.loc[ID_no].f_IA767/IA767_wave**2*c*1e8*3.63e-30
-    IA767_err = df_photometry.loc[ID_no].e_IA767/IA767_wave**2*c*1e8*3.63e-30
-    
-    IA797_wave = 7962
-    IA797_band = 354./2.
-    IA797 = df_photometry.loc[ID_no].f_IA797/IA797_wave**2*c*1e8*3.63e-30
-    IA797_err = df_photometry.loc[ID_no].e_IA797/IA797_wave**2*c*1e8*3.63e-30
-    
-    IA856_wave = 8562
-    IA856_band = 324./2.
-    IA856 = df_photometry.loc[ID_no].f_IA856/IA856_wave**2*c*1e8*3.63e-30
-    IA856_err = df_photometry.loc[ID_no].e_IA856/IA856_wave**2*c*1e8*3.63e-30
-     
-    # GOODS      |Giavalisco et al. 2004 | F435W,  F606W, F775W, F850LP|
-    # https://uknowledge.uky.edu/cgi/viewcontent.cgi?referer=&httpsredir=1&article=1264&context=physastron_facpub
-    # Also on Guo et al. 2013
-    F435W_wave = 4317
-    F435W_band = 920./2.
-    F435W = df_photometry.loc[ID_no].f_F435W/((F435W_wave)**2)*c*1e8*3.63e-30
-    F435W_err = df_photometry.loc[ID_no].e_F435W/((F435W_wave)**2)*c*1e8*3.63e-30
-    
-    F606W_wave = 5918
-    F606W_band = 2324./2.
+    # HST
+    F606W_wave = 5962.23
+    F606W_band = 2182./2
     F606W = df_photometry.loc[ID_no].f_F606W/((F606W_wave)**2)*c*1e8*3.63e-30
     F606W_err = df_photometry.loc[ID_no].e_F606W/((F606W_wave)**2)*c*1e8*3.63e-30
-    
-    F775W_wave = 7693
-    F775W_band = 1511./2.
-    F775W = df_photometry.loc[ID_no].f_F775W/((F775W_wave)**2)*c*1e8*3.63e-30
-    F775W_err = df_photometry.loc[ID_no].e_F775W/((F775W_wave)**2)*c*1e8*3.63e-30
-    
-    F850LP_wave = 9055
-    F850LP_band = 1236./2.
-    F850LP = df_photometry.loc[ID_no].f_F850LP/((F850LP_wave)**2)*c*1e8*3.63e-30
-    F850LP_err = df_photometry.loc[ID_no].e_F850LP/((F850LP_wave)**2)*c*1e8*3.63e-30
-    
-    
-    # CANDELS    | Koekemoer et al. 2011, what wavelength this should take? : the same as above        
-    F606Wcand_wave = 5918
-    F606Wcand_band = 2324./2.
-    F606Wcand = df_photometry.loc[ID_no].f_F606Wcand/((F606Wcand_wave)**2)*c*1e8*3.63e-30
-    F606Wcand_err = df_photometry.loc[ID_no].e_F606Wcand/((F606Wcand_wave)**2)*c*1e8*3.63e-30
-    
-    F814Wcand_wave = 8047
-    F814Wcand_band = 1826./2.
-    F814Wcand = df_photometry.loc[ID_no].f_F814Wcand/((F814Wcand_wave)**2)*c*1e8*3.63e-30
-    F814Wcand_err = df_photometry.loc[ID_no].e_F814Wcand/((F814Wcand_wave)**2)*c*1e8*3.63e-30
-    
-    F850LPcand_wave = 9055
-    F850LPcand_band = 1236./2.
-    F850LPcand = df_photometry.loc[ID_no].f_F850LPcand/((F850LPcand_wave)**2)*c*1e8*3.63e-30
-    F850LPcand_err = df_photometry.loc[ID_no].e_F850LPcand/((F850LPcand_wave)**2)*c*1e8*3.63e-30
-        
-    # CANDELS    | Grogin et al. 2011, Koekemoer et al. 2011|
-    F125W_wave = 12486
-    F125W_band = 3005./2.
+
+    F814W_wave = 8073.43
+    F814W_band = 1536./2
+    F814W = df_photometry.loc[ID_no].f_F814W/((F814W_wave)**2)*c*1e8*3.63e-30#http://www.stsci.edu/hst/wfc3/documents/handbooks/currentIHB/c06_uvis06.html
+    F814W_err = df_photometry.loc[ID_no].e_F814W/((F814W_wave)**2)*c*1e8*3.63e-30
+
+    F125W_wave = 12501.05
+    F125W_band = 2845./2
     F125W = df_photometry.loc[ID_no].f_F125W/((F125W_wave)**2)*c*1e8*3.63e-30
     F125W_err = df_photometry.loc[ID_no].e_F125W/((F125W_wave)**2)*c*1e8*3.63e-30
-    
-    F160W_wave = 15370
-    F160W_band = 2874./2.
-    F160W = df_photometry.loc[ID_no].f_F160W/((F160W_wave)**2)*c*1e8*3.63e-30 #http://www.stsci.edu/hst/wfc3/design/documents/handbooks/currentIHB/c07_ir06.html
-    F160W_err = df_photometry.loc[ID_no].e_F160W/((F160W_wave)**2)*c*1e8*3.63e-30
-    
-    # 3D-HST     | Brammer et al. 2012        
-    F140W_wave = 13635
-    F140W_band = 3947./2.
+
+    F140W_wave = 13970.98
+    F140W_band = 3840./2
     F140W = df_photometry.loc[ID_no].f_F140W/((F140W_wave)**2)*c*1e8*3.63e-30 #http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?id=HST/WFC3_IR.F140W
     F140W_err = df_photometry.loc[ID_no].e_F140W/((F140W_wave)**2)*c*1e8*3.63e-30
 
-    #  J, H, Ks    | ESO/GOODS  | Retzlaff et al. 2010, Wuyts et al. 2008  |
-    #  J: 1.25, H: 1.65, Ks: 2.1605
-    # ISSAC J, H, Ks: FJ/FJ/FK_BB.ASCII
-    J_wave = 1.25e4
-    J_band = 0.29e4/2.
+    F160W_wave = 15418.27
+    F160W_band = 2683./2
+    F160W = df_photometry.loc[ID_no].f_F160W/((F160W_wave)**2)*c*1e8*3.63e-30 #http://www.stsci.edu/hst/wfc3/design/documents/handbooks/currentIHB/c07_ir06.html
+    F160W_err = df_photometry.loc[ID_no].e_F160W/((F160W_wave)**2)*c*1e8*3.63e-30
+    
+    # NEWFIRM
+    J1_wave = 10468.8
+    J1_band = 1606./2
+    J1 = df_photometry.loc[ID_no].f_J1/J1_wave**2*c*1e8*3.63e-30
+    J1_err = df_photometry.loc[ID_no].e_J1/J1_wave**2*c*1e8*3.63e-30
+
+    J2_wave = 11954.16
+    J2_band = 1528./2
+    J2 = df_photometry.loc[ID_no].f_J2/J2_wave**2*c*1e8*3.63e-30
+    J2_err = df_photometry.loc[ID_no].e_J2/J2_wave**2*c*1e8*3.63e-30
+
+    J3_wave = 12784.78
+    J3_band = 1516./2
+    J3 = df_photometry.loc[ID_no].f_J3/J3_wave**2*c*1e8*3.63e-30
+    J3_err = df_photometry.loc[ID_no].e_J3/J3_wave**2*c*1e8*3.63e-30
+
+    H1_wave = 15608.68
+    H1_band = 1747./2
+    H1 = df_photometry.loc[ID_no].f_H1/H1_wave**2*c*1e8*3.63e-30
+    H1_err = df_photometry.loc[ID_no].e_H1/H1_wave**2*c*1e8*3.63e-30
+
+    H2_wave = 17072.10
+    H2_band = 1683./2
+    H2 = df_photometry.loc[ID_no].f_H2/H2_wave**2*c*1e8*3.63e-30
+    H2_err = df_photometry.loc[ID_no].e_H2/H2_wave**2*c*1e8*3.63e-30
+    
+    K_wave = 21718.94
+    K_band = 244./2
+    K = df_photometry.loc[ID_no].f_K/K_wave**2*c*1e8*3.63e-30
+    K_err = df_photometry.loc[ID_no].e_K/K_wave**2*c*1e8*3.63e-30
+    
+    # WIRDS: from CFHT WirCam from SVO
+    J_wave = 12544.6
+    J_band = 1547.9/2
     J = df_photometry.loc[ID_no].f_J/J_wave**2*c*1e8*3.63e-30
     J_err = df_photometry.loc[ID_no].e_J/J_wave**2*c*1e8*3.63e-30
-    
-    H_wave = 1.65e4
-    H_band = 0.3e4/2.
+
+    H_wave = 16309.9
+    H_band = 2885.7/2
     H = df_photometry.loc[ID_no].f_H/H_wave**2*c*1e8*3.63e-30
     H_err = df_photometry.loc[ID_no].e_H/H_wave**2*c*1e8*3.63e-30
-    
-    Ks_wave = 2.1605e4
-    Ks_band = 0.27e4/2.
+
+    Ks_wave = 21497.5
+    Ks_band = 3208.6/2
     Ks = df_photometry.loc[ID_no].f_Ks/Ks_wave**2*c*1e8*3.63e-30
     Ks_err = df_photometry.loc[ID_no].e_Ks/Ks_wave**2*c*1e8*3.63e-30
     
-    # J, Ks    | TENIS      | Hsieh et al. 2012       
-    # J: 12481, Ks: 21338 tenisJ
-    # WIRCam J and Ks
-    tenisJ_wave = 12481
-    tenisJ_band = 1588./2.
-    tenisJ = df_photometry.loc[ID_no].f_tenisJ/tenisJ_wave**2*c*1e8*3.63e-30
-    tenisJ_err = df_photometry.loc[ID_no].e_tenisJ/tenisJ_wave**2*c*1e8*3.63e-30
-    
-    tenisK_wave = 21338
-    tenisK_band = 3270./2.
-    tenisK = df_photometry.loc[ID_no].f_tenisK/tenisK_wave**2*c*1e8*3.63e-30
-    tenisK_err = df_photometry.loc[ID_no].e_tenisK/tenisK_wave**2*c*1e8*3.63e-30
-    
-    wave_list = np.array([U_wave, R_wave, U38_wave, B_wave, V_wave, Rc_wave, I_wave, \
-                        IA427_wave, IA445_wave, IA505_wave, IA527_wave, IA550_wave,\
-                        IA574_wave, IA598_wave, IA624_wave, IA651_wave, IA679_wave, IA738_wave, IA767_wave, IA797_wave, IA856_wave,\
-                        F435W_wave, F606W_wave, F775W_wave, F850LP_wave, F606Wcand_wave, F814Wcand_wave, F850LPcand_wave,\
-                        F125W_wave, F140W_wave, F160W_wave, J_wave, H_wave, Ks_wave, tenisJ_wave, tenisK_wave])
+    wave_list = np.array([u_wave, g_wave, r_wave, i_wave, z_wave, F606W_wave, F814W_wave, F125W_wave, F140W_wave, F160W_wave, J1_wave, J2_wave, J3_wave, H1_wave, H2_wave, K_wave, J_wave, H_wave, Ks_wave])
 
-    band_list = np.array([U_band, R_band, U38_band, B_band, V_band, Rc_band, I_band, \
-                        IA427_band, IA445_band, IA505_band, IA527_band, IA550_band,\
-                        IA574_band, IA598_band, IA624_band, IA651_band, IA679_band, IA738_band, IA767_band, IA797_band, IA856_band,\
-                        F435W_band, F606W_band, F775W_band, F850LP_band, F606Wcand_band, F814Wcand_band, F850LPcand_band,\
-                        F125W_band, F140W_band, F160W_band, J_band, H_band, Ks_band, tenisJ_band, tenisK_band])
+    band_list = np.array([u_band, g_band, r_band, i_band, z_band, F606W_band, F814W_band, F125W_band, F140W_band, F160W_band, J1_band, J2_band, J3_band, H1_band, H2_band, K_band, J_band, H_band, Ks_band])
     
-    photometric_flux = np.array([U, R, U38, B, V, Rc, I, IA427, IA445, IA505, IA527, IA550, IA574, IA598, IA624, IA651, IA679, IA738, IA767, IA797, IA856, \
-                                F435W, F606W, F775W, F850LP, F606Wcand, F814Wcand, F850LPcand, F125W, F140W, F160W, J, H, Ks, tenisJ, tenisK])
-    photometric_flux_err = np.array([U_err, R_err, U38_err, B_err, V_err, Rc_err,\
-                                     I_err, IA427_err, IA445_err, IA505_err, IA527_err, IA550_err, IA574_err, IA598_err, IA624_err, IA651_err, IA679_err,\
-                                     IA738_err, IA767_err, IA797_err, IA856_err, \
-                                     F435W_err, F606W_err, F775W_err, F850LP_err, F606Wcand_err, F814Wcand_err, F850LPcand_err,\
-                                     F125W_err, F140W_err, F160W_err, J_err, H_err, Ks_err, tenisJ_err, tenisK_err])
-    
-    photometric_flux_err_mod = np.array([U_err+0.1*U, R_err+0.1*R, U38_err+0.1*U38, B_err+0.1*B, V_err+0.1*V, Rc_err+0.1*Rc, I_err+0.1*I,\
-                                    IA427_err+0.1*IA427, IA445_err+0.1*IA445, IA505_err+0.1*IA505, IA527_err+0.1*IA527, IA550_err+0.1*IA550, IA574_err+0.1*IA574,\
-                                    IA598_err+0.1*IA598, IA624_err+0.1*IA624, IA651_err+0.1*IA651, IA679_err+0.1*IA679, IA738_err+0.1*IA738, IA767_err+0.1*IA767,\
-                                    IA797_err+0.1*IA797, IA856_err+0.1*IA856, \
-                                    F435W_err+0.03*F435W,  F606W_err+0.03*F606W, F775W_err+0.03*F775W, F850LP_err+0.03*F850LP,\
-                                    F606Wcand_err+0.03*F606Wcand, F814Wcand_err+0.03*F814Wcand, F850LPcand_err+0.03*F850LPcand, F125W_err+0.03*F125W, F140W_err+0.03*F140W, F160W_err+0.03*F160W,\
-                                    J_err+0.1*J, H_err+0.1*H, Ks_err+0.1*Ks, tenisJ_err+0.1*tenisJ, tenisK_err+0.1*tenisK])
+    photometric_flux = np.array([u,g,r,i,z, F606W,F814W,F125W,F140W,F160W, J1,J2,J3,H1,H2,K, J,H,Ks])
+
+    photometric_flux_err = np.array([u_err,g_err,r_err,i_err,z_err, F606W_err,F814W_err,F125W_err,F140W_err,F160W_err, J1_err,J2_err,J3_err,H1_err,H2_err,K_err, J_err,H_err,Ks_err])
+
+    photometric_flux_err_mod = np.array([u_err+0.1*u, g_err+0.1*g, r_err+0.1*r, i_err+0.1*r, z_err+0.1*z,\
+                                    F606W_err+0.03*F606W, F814W_err+0.03*F814W, F125W_err+0.03*F125W, F140W_err+0.03*F140W, F160W_err+0.03*F160W,\
+                                    J1_err+0.1*J1, J2_err+0.1*J2, J3_err+0.1*J3, H1_err+0.1*H1, H2_err+0.1*H2, K_err+0.1*K, J_err+0.1*J, H_err+0.1*H, Ks_err+0.1*Ks])    
+    # print(photometric_flux)
+    # print(photometric_flux_err)
 #-------------------------------------------------Initial Reduce the spectra ----------------------------------------------------------
     print('-------------------------------------Initial fit ---------------------------------------------------------------------------------------')
     [x, y, y_err, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod] = \
@@ -2004,8 +2022,6 @@ for i in range(len(df)):
             chi_square_list.loc[row,'grism_index'] = Lick_index_ratio(x,y)
         except:
             pass
-    # print(y)
-    # Testing fitting a line
     photo_list_for_scaling = []
     photo_err_list_for_scaling = []
     grism_flux_list_for_scaling = []
@@ -2014,6 +2030,7 @@ for i in range(len(df)):
     for i in range(len(wave_list)):
         if wave_list[i]-band_list[i] > x[0] and wave_list[i] + band_list[i] < x[-1]:
             scale_index = find_nearest(x, wave_list[i])
+            print('scale index',scale_index)
             photo_list_for_scaling.append(photometric_flux[i])
             photo_err_list_for_scaling.append(photometric_flux_err[i])
             grism_flux_list_for_scaling.append(y[scale_index])
@@ -2024,7 +2041,6 @@ for i in range(len(df)):
     grism_flux_array_for_scaling = np.array(grism_flux_list_for_scaling)
     grism_flux_err_array_for_scaling = np.array(grism_flux_err_list_for_scaling)
     grism_wave_array_for_scaling = np.array(grism_wave_list_for_scaling)
-    
 
     # Masking out the negative photometric points
     mask_non_neg_photo = np.where(photo_array_for_scaling>0)
@@ -2035,20 +2051,24 @@ for i in range(len(df)):
     grism_wave_array_for_scaling = grism_wave_array_for_scaling[mask_non_neg_photo]
 
     print('Number of photometric points for rescaling:',len(photo_array_for_scaling))
-    
+    # print('0th coeff',np.mean(photo_array_for_scaling/grism_flux_array_for_scaling))
+
     rescaling_err = 1/np.sqrt(1./grism_flux_array_for_scaling*photo_err_array_for_scaling**2
                        + photo_array_for_scaling/grism_flux_array_for_scaling**2*grism_flux_err_array_for_scaling**2)
-    ## 0th order
-    number_of_poly = 0#np.floor_divide(len(photo_array_for_scaling),3)-1
+    print('rescaling error',len(rescaling_err),len(grism_wave_array_for_scaling),len(photo_array_for_scaling/grism_flux_array_for_scaling))
+    
     p= np.polyfit(grism_wave_array_for_scaling,\
-                           photo_array_for_scaling/grism_flux_array_for_scaling, number_of_poly,\
+                           photo_array_for_scaling/grism_flux_array_for_scaling, 0,\
                            w=rescaling_err)
     y_fit = np.polyval(p,x)
     y = y_fit*y
     print('0th coeff from polyfit after masking:',np.unique(y_fit))
 
-    print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
-        ## masking out SNR>3 spectroscopic data points
+    # photometry_list = np.zeros(len(wave_list))
+    print('photo flux ',photometric_flux)
+    print('Number of photo points and the positive ones:',len(photometric_flux[photometric_flux>0]))
+    print('Photo SNR:',len(photometric_flux/photometric_flux_err>3),np.where(photometric_flux/photometric_flux_err>=3))
+    ## masking out SNR>3 spectroscopic data points
     mask_SNR3_spec = np.where(y/y_err>3)
     x = x[mask_SNR3_spec]
     y = y[mask_SNR3_spec]
@@ -2063,14 +2083,14 @@ for i in range(len(df)):
     # RADIUS = A_image* abs(np.cos(np.pi- ORIENTAT/180*np.pi-PA/180*np.pi))
     RADIUS = df_photometry.iloc[ID-1].flux_radius
     print('Corrected RADIUS:',RADIUS)
-# Using bounds to constrain
+### ---------------------Optimize ---------------------------------------
 # Test with M05 models
     print('____________________M05_________________________ Optimization__________________________')
     X = np.array([galaxy_age, intrinsic_Av])
     bnds = ((0.01, 13.0), (0.0, 4.0))
-    sol = optimize.minimize(minimize_age_AV_vector_weighted, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
-    print('Optimized weighted reduced chisqure result:', sol)
+    sol = optimize.minimize(minimize_age_AV_vector_weighted, X, bounds = bnds, method='SLSQP', options = {'disp': True})
     [age_prior_optimized, AV_prior_optimized] = sol.x
+    print(sol)
     X = sol.x
     x2_optimized = minimize_age_AV_vector_weighted(X)
     x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
@@ -2079,15 +2099,16 @@ for i in range(len(df)):
     chi_square_list.loc[row,'x2_M05_opt'] = x2_optimized
     chi_square_list.loc[row,'x2_spectra_M05_opt'] = x2_spec
     chi_square_list.loc[row,'x2_photo_M05_opt'] = x2_phot
-
     #--- Plot
-    X=sol.x
+    X = sol.x
     n = len(x)
+    print(X)
     fig1 = plt.figure(figsize=(20,10))
     frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.step(x, y, color='r',lw=3)
+    plt.step(x, y, color='r',lw=0.5)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+    plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
+
     model_wave, model_flux, model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
     plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
     plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
@@ -2096,17 +2117,21 @@ for i in range(len(df)):
     plt.ylim([0.05, 1.2])
     plt.semilogx()
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.tick_params(axis='both', which='major', labelsize=20)
     plt.legend(loc='upper right',fontsize=24)
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-
-    frame2 = fig1.add_axes((.1,.2,.8,.15))
+    
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
     plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2114,11 +2139,7 @@ for i in range(len(df)):
     plt.ylim([-5,5])
     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    plt.tick_params(axis='both', which='minor', labelsize=20)
-    figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
     plt.savefig(figname)
     plt.clf()
 
@@ -2129,15 +2150,14 @@ for i in range(len(df)):
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
         sampler.run_mcmc(p0, nsteps, progress=True)
         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-        print(np.size(samples))
-        samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
+        samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
+                 (samples[:,0] < age_prior_optimized*2.0) &\
+                 (samples[:,1] < AV_prior_optimized*3.0)]
         tok = time.clock()
         multi_time = tok-tik
-        print(np.size(samples))
-        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
         print('Time to run M05 MCMC:'+str(tok-tik)) 
-        print('sample size:',samples.size)       
-    try:
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+    try:     
         if samples.size > 1e3:
             value2 = np.percentile(samples, 50, axis=0)
             X = np.percentile(samples, 50, axis=0)
@@ -2146,7 +2166,7 @@ for i in range(len(df)):
             fig = corner.corner(samples,
                  labels=["age(Gyr)", r"$\rm A_V$"],
                  truths=[age_prior_optimized, AV_prior_optimized],
-                 levels = (1-np.exp(-0.5),),
+                 level=(1-np.exp(-0.5),),
                  show_titles=True,title_kwargs={'fontsize':12},
                                 quantiles=(0.16,0.5, 0.84))
             axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2165,11 +2185,10 @@ for i in range(len(df)):
                     ax.plot(X[xi], X[yi], "sg")
                     ax.plot(value2[xi],value2[yi],'sr')
             plt.rcParams.update({'font.size': 12})
-            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
             fig.savefig(figname)
             fig.clf()
-            print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
+            print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))        
             #--- Plot
             X = np.percentile(samples, 50, axis=0)
             x2_optimized = minimize_age_AV_vector_weighted(X)
@@ -2185,16 +2204,19 @@ for i in range(len(df)):
             n = len(x)
             fig1 = plt.figure(figsize=(20,10))
             frame1 = fig1.add_axes((.1,.35,.8,.6))
-            plt.step(x, y, color='r',lw=3)
+
+            plt.step(x, y, color='r',lw=0.5)                
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+
             model_wave, model_flux,model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
             plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
             plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
 
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
+
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
             plt.legend(loc='upper right',fontsize=24)
@@ -2207,10 +2229,10 @@ for i in range(len(df)):
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
+            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             plt.tick_params(axis='both', which='major', labelsize=20)
             plt.tick_params(axis='both', which='minor', labelsize=20)
-            plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-            plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)            
             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2218,33 +2240,33 @@ for i in range(len(df)):
             plt.ylim([-5,5])
             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-            figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
             plt.savefig(figname)
             plt.clf()
-        else :
+        else:
             with Pool() as pool:
-                print('modified steps:',nsteps)
                 ndim, nwalkers = 2, 10
                 tik = time.clock()
                 p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
                 sampler.run_mcmc(p0, nsteps*2, progress=True)
                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-                samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
+                samples = samples[(samples[:,0] > age_prior_optimized*0.1) &\
+                         (samples[:,0] < age_prior_optimized*2.0) &\
+                         (samples[:,1] < AV_prior_optimized*3.0)]
                 tok = time.clock()
                 multi_time = tok-tik
-                print('modified sample size',np.size(samples))
+                print('Time to run M05 MCMC:'+str(tok-tik)) 
                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-                print('Time to run M05 MCMC:'+str(tok-tik))     
             if samples.size > 1e3:
                 value2 = np.percentile(samples, 50, axis=0)
-                X = np.percentile(samples,50,axis=0)
+                X = np.percentile(samples, 50, axis=0)
                 [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
                 plt.figure(figsize=(32,32),dpi=100)
                 fig = corner.corner(samples,
                      labels=["age(Gyr)", r"$\rm A_V$"],
                      truths=[age_prior_optimized, AV_prior_optimized],
-                     levels = (1-np.exp(-0.5),),
+                     level=(1-np.exp(-0.5),),
                      show_titles=True,title_kwargs={'fontsize':12},
                                     quantiles=(0.16,0.5, 0.84))
                 axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2263,11 +2285,11 @@ for i in range(len(df)):
                         ax.plot(X[xi], X[yi], "sg")
                         ax.plot(value2[xi],value2[yi],'sr')
                 plt.rcParams.update({'font.size': 12})
-                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-                fig.savefig(figname)
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M05_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                plt.savefig(figname)
                 fig.clf()
                 print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
+                
                 #--- Plot
                 X = np.percentile(samples, 50, axis=0)
                 x2_optimized = minimize_age_AV_vector_weighted(X)
@@ -2283,31 +2305,35 @@ for i in range(len(df)):
                 n = len(x)
                 fig1 = plt.figure(figsize=(20,10))
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-                plt.step(x, y, color='r',lw=3)
+
+                plt.step(x, y, color='r',lw=0.5)                
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+                plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize=14)
+
                 model_wave, model_flux, model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
                 plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
                 plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
+
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
                 plt.legend(loc='upper right',fontsize=24)
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
-                frame2 = fig1.add_axes((.1,.2,.8,.15)) 
+                frame2 = fig1.add_axes((.1,.2,.8,.15))  
                 plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
-                plt.tick_params(axis='both', which='major', labelsize=20)
-                plt.tick_params(axis='both', which='minor', labelsize=20)
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2315,7 +2341,7 @@ for i in range(len(df)):
                 plt.ylim([-5,5])
                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-                figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                figname=current_dir+outcome_dir+plot_dir+'aegis_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
                 plt.savefig(figname)
                 plt.clf()
     except:
@@ -2324,15 +2350,15 @@ for i in range(len(df)):
 # Test with the new M13 models
     print('____________________M13_________________________ Optimization__________________________')
     bnds = ((0.0, 13.0), (0.0, 4.0))
-    X = np.array([galaxy_age, intrinsic_Av])
+    X = np.array([galaxy_age,intrinsic_Av])
     try:
         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
         print('Optimized M13 weighted reduced chisqure result:', sol_M13)
     except:
         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds)#, method='SLSQP')#, options = {'disp': True})
-        print('Optimized M13 weighted reduced chisqure result:', sol_M13)    
-    X = sol_M13.x
+        print('Optimized M13 weighted reduced chisqure result:', sol_M13)
     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
+    X = sol_M13.x
     x2_optimized = minimize_age_AV_vector_weighted_M13(X)
     x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
     chi_square_list.loc[row,'M13_age_opt'] = X[0]#"{0:.2f}".format(X[0])
@@ -2340,13 +2366,12 @@ for i in range(len(df)):
     chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
     chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
     chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
-    
     #--- Plot
     X = sol_M13.x
     n = len(x)
     fig1 = plt.figure(figsize=(20,10))
     frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.step(x, y, color='r',lw=3)
+    plt.step(x, y, color='r',lw=0.5)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
@@ -2369,16 +2394,16 @@ for i in range(len(df)):
     plt.semilogx()
     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
     plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
     plt.ylim([-5,5])
     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    plt.tick_params(axis='both', which='minor', labelsize=20)
     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-    figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_M13_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
     plt.savefig(figname)
     plt.clf()
 
@@ -2387,18 +2412,13 @@ for i in range(len(df)):
         tik = time.clock()
         p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-        sampler.run_mcmc(p0,nsteps, progress=True)
-        # print(np.size(samples))
-
+        sampler.run_mcmc(p0, nsteps, progress=True)
         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
         samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
-        # print(np.size(samples))
-
         tok = time.clock()
         multi_time = tok-tik
         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
         print('Time to run M13 MCMC:'+str(tok-tik))
-
     try:
         if samples.size > 1e3 :
             value2=np.percentile(samples, 50, axis=0)
@@ -2407,8 +2427,8 @@ for i in range(len(df)):
             plt.figure(figsize=(32,32),dpi=100)
             fig = corner.corner(samples,
                  labels=["age(Gyr)", r"$\rm A_V$"],
-                 levels=(1-np.exp(-0.5),),
                  truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                 levels=(1-np.exp(-0.5),),
                  show_titles=True,title_kwargs={'fontsize':12},
                                 quantiles=(0.16,0.5, 0.84))
             axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2431,11 +2451,11 @@ for i in range(len(df)):
                     ax.plot(X[xi], X[yi], "sg")
                     ax.plot(value2[xi],value2[yi],'sr')
             plt.rcParams.update({'font.size': 12})
-            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
             fig.savefig(figname)
             fig.clf()
             print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
+        
             #--- Plot
             X = np.percentile(samples, 50, axis=0)
             x2_optimized = minimize_age_AV_vector_weighted_M13(X)
@@ -2446,19 +2466,20 @@ for i in range(len(df)):
             chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
             chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
             chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-            chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
-            n = len(x)
+            chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
+            n = len(x)
             fig1 = plt.figure(figsize=(20,10))
             frame1 = fig1.add_axes((.1,.35,.8,.6))
-            plt.step(x, y, color='r',lw=3)
+            plt.step(x, y, color='r',lw=0.5)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
             model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
             plt.step(model_wave, model_flux, color='green',label='TP-AGB mild original resolution',lw=0.5)
             plt.step(model_wave_smooth, model_flux_smooth, color='green', label='TP-AGB mild smoothed, sampled at grism resolution', lw=2, zorder =100)
+
             plt.xlim([2.5e3,1.9e4])
-            plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
+            plt.ylim([0.05, 1.2])
             plt.semilogx()
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
@@ -2483,23 +2504,21 @@ for i in range(len(df)):
             plt.ylim([-5,5])
             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-            figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
             plt.savefig(figname)
             plt.clf()
         else:
             with Pool() as pool:
-                print('modified steps:',nsteps*2)
                 ndim, nwalkers = 2, 10
                 tik = time.clock()
                 p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-                sampler.run_mcmc(p0,nsteps*2, progress=True)
+                sampler.run_mcmc(p0, nsteps*2, progress=True)
                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
                 samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
                 tok = time.clock()
                 multi_time = tok-tik
                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-                print('Time to run M13 MCMC:'+str(tok-tik))
             if samples.size > 1e3 :
                 value2=np.percentile(samples, 50, axis=0)
                 X = np.percentile(samples, 50, axis=0)
@@ -2507,8 +2526,8 @@ for i in range(len(df)):
                 plt.figure(figsize=(32,32),dpi=100)
                 fig = corner.corner(samples,
                      labels=["age(Gyr)", r"$\rm A_V$"],
-                     levels=(1-np.exp(-0.5),),
                      truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
+                     levels=(1-np.exp(-0.5),),
                      show_titles=True,title_kwargs={'fontsize':12},
                                     quantiles=(0.16,0.5, 0.84))
                 axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2531,11 +2550,11 @@ for i in range(len(df)):
                         ax.plot(X[xi], X[yi], "sg")
                         ax.plot(value2[xi],value2[yi],'sr')
                 plt.rcParams.update({'font.size': 12})
-                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_M13_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
                 fig.savefig(figname)
                 fig.clf()
                 print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
+                
                 #--- Plot
                 X = np.percentile(samples, 50, axis=0)
                 x2_optimized = minimize_age_AV_vector_weighted_M13(X)
@@ -2546,17 +2565,19 @@ for i in range(len(df)):
                 chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
                 chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
                 chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-                chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
-                n = len(x)
+                chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1] #"{0:.2f}".format(np.std(samples, axis=0)[1])
 
+                n = len(x)
                 fig1 = plt.figure(figsize=(20,10))
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-                plt.step(x, y, color='r',lw=3)
+                plt.step(x, y, color='r',lw=0.5)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+                
                 model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
                 plt.step(model_wave, model_flux, color='green',label='TP-AGB mild original resolution',lw=0.5)
                 plt.step(model_wave_smooth, model_flux_smooth, color='green', label='TP-AGB mild smoothed, sampled at grism resolution', lw=2, zorder =100)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2569,7 +2590,6 @@ for i in range(len(df)):
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
                 plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2582,9 +2602,8 @@ for i in range(len(df)):
                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
                 plt.ylim([-5,5])
                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-
                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-                figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_MCMC50_'+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                figname=current_dir+outcome_dir+plot_dir+'aegis_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
                 plt.savefig(figname)
                 plt.clf()
     except:
@@ -2592,8 +2611,8 @@ for i in range(len(df)):
 
 # Test with the new BC03 models
     print('____________________BC03_________________________ Optimization__________________________')
-    bnds = ((0.0, 13.0), (0.0, 4.0))
     X = np.array([galaxy_age,intrinsic_Av])
+    bnds = ((0.0, 13.0), (0.0, 4.0))
     sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
     print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
     [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
@@ -2605,18 +2624,19 @@ for i in range(len(df)):
     chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
     chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
     chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
-
+    
     #--- Plot
     X = sol_BC03.x
     n = len(x)
     fig1 = plt.figure(figsize=(20,10))
     frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.step(x, y, color='r',lw=3)
+    plt.step(x, y, color='r',lw=0.5)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
     model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_BC03_return_flux(X)[1:]
     plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
     plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
+
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -2629,9 +2649,9 @@ for i in range(len(df)):
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
     plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
+    # plt.axhline(1.0, linestyle='--', linewidth=2, color='k')
     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2643,22 +2663,18 @@ for i in range(len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     plt.tick_params(axis='both', which='major', labelsize=20)
     plt.tick_params(axis='both', which='minor', labelsize=20)
-    figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+    figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
     plt.savefig(figname)
     plt.clf()
-
+    
     with Pool() as pool:
         ndim, nwalkers = 2, 10
         tik = time.clock()
         p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
         sampler.run_mcmc(p0, nsteps, progress=True)
-        # print(np.size(samples))
-
         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
         samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-        # print(np.size(samples))
-
         tok = time.clock()
         multi_time = tok-tik
         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
@@ -2666,13 +2682,13 @@ for i in range(len(df)):
     try:
         if samples.size > 1e3:
             value2=np.percentile(samples,50,axis=0)
-            X = np.percentile(samples, 50,axis=0)
+            X = np.percentile(samples, 50, axis=0)
             [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
             plt.figure(figsize=(32,32),dpi=100)
             fig = corner.corner(samples,
                                 labels=["age(Gyr)", r"$\rm A_V$"],\
                                 truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-                                levels = (1-np.exp(-0.5),),\
+                                levels=(1-np.exp(-0.5),),\
                                 show_titles=True,title_kwargs={'fontsize':12},
                                 quantiles=(0.16,0.5, 0.84))
             axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2691,7 +2707,7 @@ for i in range(len(df)):
                     ax.plot(X[xi], X[yi], "sg")
                     ax.plot(value2[xi],value2[yi],'sr')
             plt.rcParams.update({'font.size': 12})
-            figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+            figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
             fig.savefig(figname)
             fig.clf()
             print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
@@ -2707,20 +2723,23 @@ for i in range(len(df)):
             chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
             chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
             chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+
             n = len(x)
-            
             fig1 = plt.figure(figsize=(20,10))
             frame1 = fig1.add_axes((.1,.35,.8,.6))
-            plt.step(x, y, color='r',lw=3)
+
+            plt.step(x, y, color='r',lw=0.5)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+
+            # SSP
             model_wave, model_flux, model_wave_smooth, model_flux_smooth  = minimize_age_AV_vector_weighted_BC03_return_flux(X)[1:]
             plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
             plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
-  
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
+
             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
             plt.tick_params(axis='both', which='major', labelsize=22)
             plt.legend(loc='upper right',fontsize=24)
@@ -2730,9 +2749,10 @@ for i in range(len(df)):
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
             plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
+            plt.tick_params(axis='both', which='major', labelsize=20)
+            plt.tick_params(axis='both', which='minor', labelsize=20)
             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2742,14 +2762,11 @@ for i in range(len(df)):
             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-            plt.tick_params(axis='both', which='major', labelsize=20)
-            plt.tick_params(axis='both', which='minor', labelsize=20)
-            figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+            figname=current_dir+outcome_dir+plot_dir+'aegis_BC03_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
             plt.savefig(figname)
-            plt.clf()
-        else:
+            plt.close('all')
+        else: 
             with Pool() as pool:
-                print('modified steps:',nsteps)
                 ndim, nwalkers = 2, 10
                 tik = time.clock()
                 p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
@@ -2757,19 +2774,18 @@ for i in range(len(df)):
                 sampler.run_mcmc(p0, nsteps*2, progress=True)
                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
                 samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-                tok = time.clock()
                 multi_time = tok-tik
+                tok = time.clock()
                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-                print('Time to run BC03 MCMC:'+str(tok-tik))
             if samples.size > 1e3:
                 value2=np.percentile(samples,50,axis=0)
-                X = np.percentile(samples,50,axis=0)
+                X = np.percentile(samples, 50, axis=0)
                 [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
                 plt.figure(figsize=(32,32),dpi=100)
                 fig = corner.corner(samples,
                                     labels=["age(Gyr)", r"$\rm A_V$"],\
                                     truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-                                    levels = (1-np.exp(-0.5),),\
+                                    levels=(1-np.exp(-0.5),),\
                                     show_titles=True,title_kwargs={'fontsize':12},
                                     quantiles=(0.16,0.5, 0.84))
                 axes = np.array(fig.axes).reshape((ndim, ndim))
@@ -2788,8 +2804,8 @@ for i in range(len(df)):
                         ax.plot(X[xi], X[yi], "sg")
                         ax.plot(value2[xi],value2[yi],'sr')
                 plt.rcParams.update({'font.size': 12})
-                figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-                fig.savefig(figname)
+                figname=current_dir+outcome_dir+plot_dir+"aegis_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
+                plt.savefig(figname)
                 fig.clf()
                 print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
                 
@@ -2804,31 +2820,38 @@ for i in range(len(df)):
                 chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
                 chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
                 chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+
                 n = len(x)
-                
                 fig1 = plt.figure(figsize=(20,10))
                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-                plt.step(x, y, color='r',lw=3)
+
+                plt.step(x, y, color='r',lw=0.5)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
+
+                # SSP
                 model_wave, model_flux, model_wave_smooth, model_flux_smooth= minimize_age_AV_vector_weighted_BC03_mod_return_flux(X)[1:]
                 plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
                 plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
+                
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
+
                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
                 plt.tick_params(axis='both', which='major', labelsize=22)
                 plt.legend(loc='upper right',fontsize=24)
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
-                frame2 = fig1.add_axes((.1,.2,.8,.15))  
+                frame2 = fig1.add_axes((.1,.2,.8,.15))
                 plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
+                plt.tick_params(axis='both', which='major', labelsize=20)
+                plt.tick_params(axis='both', which='minor', labelsize=20)
                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
@@ -2838,16 +2861,13 @@ for i in range(len(df)):
                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-                plt.tick_params(axis='both', which='major', labelsize=20)
-                plt.tick_params(axis='both', which='minor', labelsize=20)
-                figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_MCMC50_'+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
+                figname=current_dir+outcome_dir+plot_dir+'aegis_SSP_BC03_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
                 plt.savefig(figname)
-                plt.clf()
+                plt.close('all')
     except:
         pass
-
-    chi2_array=chi_square_list.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
-    AV_array=chi_square_list.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
+    chi2_array=chi_square_list.loc[row,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
+    AV_array=chi_square_list.loc[row,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
     index = find_nearest(chi2_array,0)
     AV_opt = float(AV_array[index])
     spectra_extinction = calzetti00(x, AV_opt, 4.05)
@@ -2858,5 +2878,5 @@ for i in range(len(df)):
             chi_square_list.loc[row,'grism_index_AV_corr'] = Lick_index_ratio(x,y_corr)
         except:
             pass
-    chi_square_list.to_csv('/home/siqi/TAPS/TAPS/outcome/numeric/chi_square_list_goodss_'+str(date)+'_photo_'+str(region)+'_'+str(ID)+'.csv')
-
+    chi_square_list.to_csv('/home/siqi/TAPS/TAPS/outcome/numeric/chi_square_list_aegis_'+str(date)+'_photo_'+str(region)+'_'+str(ID)+'_deltal_.csv')
+    print('-------------------------------------End--------------------------------------------------------------------------------------')

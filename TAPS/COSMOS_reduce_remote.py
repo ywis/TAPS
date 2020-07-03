@@ -1628,7 +1628,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200601'
+date='20200619'
 plot_dir = 'plot/'+date+'_cosmos/'
 
 tik = time.time()

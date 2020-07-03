@@ -436,30 +436,12 @@ def minimize_age_AV_vector_weighted(X):
     Flux_M05_norm_new = M05_flux_center[F_M05_index]
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
-    binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
-    smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
+    x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                5, 20/2.35, 5, 50/2.35) 
+    x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        if np.isnan(x2):
-            print('spectra chi2 is nan,binning model',model_flux_binned)
-            print('spectra model wave', model1[0,:], model1[1,:], intrinsic_Av)
-            print('model flux before binning', spectra_extinction, spectra_flux_correction, M05_flux_center, Flux_M05_norm_new)
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    else:
-        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-        x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                                             5, 20/2.35, 5, 50/2.35)
     
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
@@ -469,7 +451,6 @@ def minimize_age_AV_vector_weighted(X):
     except ValueError: # NaN value case
         x2_tot = np.inf
         print('ValueError', x2_tot)
-    # print('M05 x2 tot:',x2, x2_photo, x2_tot)
     return x2_tot
 def lg_minimize_age_AV_vector_weighted(X):
     galaxy_age= X[0]
@@ -536,44 +517,23 @@ def lg_minimize_age_AV_vector_weighted(X):
     Flux_M05_norm_new = M05_flux_center[F_M05_index]
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
-    binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
-    smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
+    x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                5, 20/2.35, 5, 50/2.35) 
+    x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        # x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    else:
-        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
-        # x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    # print('binning size, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                                            5, 20/2.35, 5, 50/2.35)
     
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
-            lnprobval = -0.5*(0.5*x2+0.5*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+            lnprobval = -0.5*(0.5*x2+0.5*x2_photo)
             if np.isnan(lnprobval):
                 lnprobval = -np.inf
         else:
             lnprobval = -np.inf
-    except ValueError: # NaN value case
+    except ValueError: 
         lnprobval = -np.inf
         print('valueError',lnprobval)
-    # if np.isinf(lnprobval):
-    #     print('lnprob:',lnprobval, x2, x2_photo,galaxy_age,intrinsic_Av)
     return lnprobval
 def minimize_age_AV_vector_weighted_return_flux(X):
     galaxy_age= X[0]
@@ -581,9 +541,7 @@ def minimize_age_AV_vector_weighted_return_flux(X):
     n=len(x)
     age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
     age_prior = df_Ma.Age.unique()[age_index]
-    #print('galaxy age', galaxy_age, 'age prior:', age_prior)
     AV_string = str(intrinsic_Av)
-    #print('intrinsic Av:', intrinsic_Av)
     galaxy_age_string = str(age_prior)
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
@@ -638,52 +596,33 @@ def minimize_age_AV_vector_weighted_return_flux(X):
     spectra_extinction = calzetti00(model1[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M05_flux_center = model1[1,:]*spectra_flux_correction
-    F_M05_index=700#167
+    F_M05_index=700 #167
     Flux_M05_norm_new = M05_flux_center[F_M05_index]
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
 
-    binning_index = find_nearest(model1[0,:],np.median(x))
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        # x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                5, 20/2.35, 5, 50/2.35) 
+    x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
-        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    else:
-        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
-        # x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                                             5, 20/2.35, 5, 50/2.35)
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
         else:
             x2_tot = np.inf
-    except ValueError: # NaN value case
+    except ValueError: 
         x2_tot = np.inf
         print('valueError', x2_tot)
-    # print('model wave range', model1[0,0], model1[0,-1])
 
-    return x2_tot, model1[0,:], smooth_Flux_Ma_1Gyr_new
+    return x2_tot, model1[0,:], smooth_Flux_Ma_1Gyr_new, model_wave_smooth, model_flux_smooth
 def minimize_age_AV_vector_weighted_return_chi2_sep(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
     n=len(x)
     age_index = find_nearest(df_Ma.Age.unique(), galaxy_age)
     age_prior = df_Ma.Age.unique()[age_index]
-    #print('galaxy age', galaxy_age, 'age prior:', age_prior)
     AV_string = str(intrinsic_Av)
-    #print('intrinsic Av:', intrinsic_Av)
     galaxy_age_string = str(age_prior)
     split_galaxy_age_string = str(galaxy_age_string).split('.')
 
@@ -742,30 +681,13 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
     Flux_M05_norm_new = M05_flux_center[F_M05_index]
     smooth_Flux_Ma_1Gyr_new = M05_flux_center/Flux_M05_norm_new
     
-    binning_index = find_nearest(model1[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model1[0,binning_index]-model1[0,binning_index-1]))
-    smooth_Flux_Ma_1Gyr_new = convolve(smooth_Flux_Ma_1Gyr_new, gauss_kernel)
-    
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model1[0,binning_index]-model1[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model1[0,binning_index]-model1[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model1[0,:], smooth_Flux_Ma_1Gyr_new,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                5, 20/2.35, 5, 50/2.35) 
+    x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
-        # x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning model, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    else:
-        binning_size = int((model1[0,binning_index]-model1[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model1[0,:], smooth_Flux_Ma_1Gyr_new) 
-        x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning data, model 1', n, (model1[0,binning_index]-model1[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
+                                                             5, 20/2.35, 5, 50/2.35)
+
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             pass
@@ -844,44 +766,16 @@ def minimize_age_AV_vector_weighted_M13(X):
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    F_M13_index = 326#126
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
-    binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
-    smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
+    x2 = reduced_chi_square_obs_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new,
+                               20, 20./2.35, 50, 50./2.35) 
+    x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new, \
+                                                             20, 20./2.35, 50, 50./2.35)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        if np.isnan(x2):
-            print('spectra chi2 is nan, binning model', model_flux_binned)
-            print('spectra model wave', model2[0,:],intrinsic_Av)
-            print('model flux before binning', spectra_extinction, spectra_flux_correction, M13_flux_center, Flux_M13_norm_new)
-            sys.exit()
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
-    else:
-        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        if np.isnan(x2):
-            print('spectra chi2 is nan,binning data',x_binned)
-            print('spectra model wave', model2[0,:],intrinsic_Av)
-            print('model flux before binning', spectra_extinction, spectra_flux_correction, M13_flux_center, Flux_M13_norm_new)
-            sys.exit()
-        x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        if np.isnan(x2_photo):
-            print('model 2 photo nan', x2_photo)
-        # print('binning data, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, model2[0,:], smooth_Flux_M13_1Gyr_new)
-    # print(x2_photo)
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
@@ -955,44 +849,19 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
         else:
             model2 = M13_model_list[age_index]
 
-
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    F_M13_index = 326#126
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
+
+    x2 = reduced_chi_square_obs_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new,
+                               20, 20./2.35, 50, 50./2.35) 
+    x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new, \
+                                                             20, 20./2.35, 50, 50./2.35)
     
-    binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
-    smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
-
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index == len(model2[0,:]):
-        binning_index = len(model2[0,:])-1
-        # print('binning index:',binning_index,len(model2[0,:]),len(x), model2[:,binning_index-2:binning_index])
-
-    # print('galaxy age:', galaxy_age, age_prior,age_index)
-    # print(x, n)
-    # print(len(model2),galaxy_age, age_prior, age_index, len(x), len(model2), np.median(x), np.min(model2[0,:]),np.max(model2[0,:]), binning_index)
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        # print('bin size', model2[0,binning_index],\
-        #                   model2[0,binning_index-1],\
-        #                   (model2[0,binning_index]-model2[0,binning_index-1]),\
-        #                   int((x[int(n/2)]-x[int(n/2)-1])),\
-        #                   binning_size)
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new, binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    else:
-        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    tok = time.clock()
-    # print('time for lg_minimize',tok-tik)
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             lnprobval = -0.5*(0.5*x2+0.5*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
@@ -1003,7 +872,6 @@ def lg_minimize_age_AV_vector_weighted_M13(X):
     except ValueError: # NaN value case
         lnprobval = -np.inf
         print('valueError',lnprobval,x2, x2_photo)
-    # print('lnprob:',lnprobval)
     return lnprobval
 def minimize_age_AV_vector_weighted_M13_return_flux(X):
     galaxy_age= X[0]
@@ -1067,34 +935,21 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
             model2 = (15.0-galaxy_age)*M13_model_list[65] + (galaxy_age-14.0)*M13_model_list[66]
         else:
             model2 = M13_model_list[age_index]
-
     
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    F_M13_index = 326#126
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
-    binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
-    smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
+    x2 = reduced_chi_square_obs_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new,
+                               20, 20./2.35, 50, 50./2.35) 
+    x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new, \
+                                                             20, 20./2.35, 50, 50./2.35)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new, binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        smooth_Flux_M13_1Gyr_new = model_flux_binned
-    else:
-        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
             x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
@@ -1103,11 +958,8 @@ def minimize_age_AV_vector_weighted_M13_return_flux(X):
     except ValueError: # NaN value case
         x2_tot = np.inf
         print('valueError', x2_tot)
-    # print('model wave range', model2[0,0], model2[0,-1], split_galaxy_age_string )
-    # print('model wave separately', M13_model_list[53][0,0],M13_model_list[53][0,-1],len(M13_model_list[53][0,:]),len(M13_model_list[54][0,:]),M13_model_list[54][0,0],M13_model_list[53][0,-1])
-    # print('model test', model_test[0,0], model_test[0,-1])
-    # print('age',galaxy_age,age_prior)
-    return x2_tot, model2[0,:], smooth_Flux_M13_1Gyr_new
+
+    return x2_tot, model2[0,:], smooth_Flux_M13_1Gyr_new, model_wave_smooth, model_flux_smooth
 def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1169,34 +1021,19 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         else:
             model2 = M13_model_list[age_index]
 
-
-
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
+    F_M13_index = 326#126
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
 
-    binning_index = find_nearest(model2[0,:],np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (model2[0,binning_index]-model2[0,binning_index-1]))
-    smooth_Flux_M13_1Gyr_new = convolve(smooth_Flux_M13_1Gyr_new, gauss_kernel)
+    x2 = reduced_chi_square_obs_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new,
+                               20, 20./2.35, 50, 50./2.35) 
+    x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_M13(x, y, y_err, model2[0,:], smooth_Flux_M13_1Gyr_new, \
+                                                             20, 20./2.35, 50, 50./2.35)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) > (model2[0,binning_index]-model2[0,binning_index-1]):
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(model2[0,binning_index]-model2[0,binning_index-1]))
-        model_wave_binned,model_flux_binned = binning_spec_keep_shape(model2[0,:], smooth_Flux_M13_1Gyr_new,binnning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('binning model, model 2', n, (model2[0,binning_index]-model2[0,binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]),binning_size)    
-    else:
-        binning_size = int((model2[0,binning_index]-model2[0,binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, model2[0,:], smooth_Flux_M13_1Gyr_new) 
-        x2_photo = chisquare_photo(model2[0,:], smooth_Flux_M13_1Gyr_new,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
     
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
@@ -1234,30 +1071,21 @@ def minimize_age_AV_vector_weighted_BC03(X):
     BC03_flux_norm = BC03_flux_attenuated[2556]
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
-    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-    BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
+    x2 = reduced_chi_square_obs_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                   1, 3/2.35, 16.7,  33.3, 50/2.35) 
+    x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                                             1, 3/2.35, 16.7,  33.3, 50/2.35)
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: # NaN value case
+        x2_tot = np.inf
+        print('ValueError', x2_tot)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
-        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned = binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated)
-        x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod) 
-        # print('bin data', n, binning_size, x2)
-    else: 
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-        # print('bin model',binning_size, x2)
-    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
-    # print('BC x2_nu',x2,x2_photo,0.5*weight1*x2+0.5*weight2*x2_photo)
-    return 0.5*weight1*x2+0.5*weight2*x2_photo
+    return x2_tot
 def lg_minimize_age_AV_vector_weighted_BC03(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1283,44 +1111,23 @@ def lg_minimize_age_AV_vector_weighted_BC03(X):
     BC03_flux_norm = BC03_flux_attenuated[2556]
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
-    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-    BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
-
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
-        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod) 
-
-        # print('bin data', binning_size, x2)
-    else: 
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned)
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
- 
-        # print('bin model',binning_size, x2)
-    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
-    
+    x2 = reduced_chi_square_obs_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                   1, 3/2.35, 16.7,  33.3, 50/2.35) 
+    x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                                             1, 3/2.35, 16.7,  33.3, 50/2.35)    
     try: 
         if 0.01<galaxy_age<13 and 0.0<intrinsic_Av<4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
-            lnprobval = -0.5*(0.5*x2+0.5*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+            lnprobval = -0.5*(0.5*x2+0.5*x2_photo)
             if np.isnan(lnprobval):
                 lnprobval = -np.inf
         else:
             lnprobval = -np.inf
-    except ValueError: # NaN value case
+    except ValueError: 
        lnprobval = -np.inf
        print('valueError',lnprobval,x2, x2_photo)
-    # print('lnprob:',lnprobval)
     return lnprobval
-def minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X):
+def minimize_age_AV_vector_weighted_BC03_return_flux(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
     n=len(x)
@@ -1345,31 +1152,22 @@ def minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X):
     BC03_flux_norm = BC03_flux_attenuated[2556]
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
-    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-    BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
 
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
-        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod) 
-        # print('bin data', binning_size, x2)
-    else: 
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
-        # print('bin model',binning_size, x2)
-    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)     
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
+    x2 = reduced_chi_square_obs_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                   1, 3/2.35, 16.7,  33.3, 50/2.35) 
+    x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                                             1, 3/2.35, 16.7,  33.3, 50/2.35)
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*x2+0.5*x2_photo):
+            x2_tot = 0.5*weight1*x2+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: 
+        x2_tot = np.inf
+        print('valueError', x2_tot)
     
-    return 0.5*weight1*x2+0.5*weight2*x2_photo,BC03_flux_attenuated
+    return x2_tot, BC03_wave_list_num, BC03_flux_attenuated, model_wave_smooth, model_flux_smooth
 def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1393,33 +1191,14 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     BC03_flux_norm = BC03_flux_attenuated[2556]
     BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
 
-    binning_index = find_nearest(BC03_wave_list_num, np.median(x))
-    gauss_kernel = Gaussian1DKernel(smoothing_deltal/ (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-    BC03_flux_attenuated = convolve(BC03_flux_attenuated, gauss_kernel)
-
-    if binning_index == 0:
-        binning_index = 1
-    elif binning_index ==len(x):
-        binning_index = len(x)-1
-    if (x[int(n/2)]-x[int(n/2)-1]) < (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]):
-        binning_size = int((BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1])/(x[int(n/2)]-x[int(n/2)-1]))
-        x_binned,y_binned,y_err_binned=binning_spec_keep_shape_x(x,y,y_err,binning_size)
-        x2 = reduced_chi_square(x_binned, y_binned, y_err_binned, BC03_wave_list_num, BC03_flux_attenuated) 
-        x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod) 
-        # print('bin data', binning_size, x2)
-    else: 
-        binning_size = int((x[int(n/2)]-x[int(n/2)-1])/(BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]))
-        model_wave_binned, model_flux_binned = binning_spec_keep_shape(BC03_wave_list_num, BC03_flux_attenuated,binning_size)
-        x2 = reduced_chi_square(x, y, y_err, model_wave_binned, model_flux_binned) 
-        x2_photo = chisquare_photo(model_wave_binned, model_flux_binned,redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-
-        # print('bin model',binning_size, x2)
-    # print('binning size, model 3', n, (BC03_wave_list_num[binning_index]-BC03_wave_list_num[binning_index-1]), (x[int(n/2)]-x[int(n/2)-1]), binning_size)    
-    # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
-    
+    x2 = reduced_chi_square_obs_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                   1, 3/2.35, 16.7,  33.3, 50/2.35) 
+    x2_photo = chisquare_photo(BC03_wave_list_num, BC03_flux_attenuated, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    model_wave_smooth, model_flux_smooth = smooth_model_spec_BC(x, y, y_err, BC03_wave_list_num, BC03_flux_attenuated,\
+                                                             1, 3/2.35, 16.7,  33.3, 50/2.35)    
     return x2,x2_photo
 
-def find_nearest(array,value):
+def find_nearest(array, value):
     idx = np.searchsorted(array, value, side="left")
     # print('find nearest idx searchsorted:', idx)
     if np.isnan(idx):
@@ -1430,7 +1209,7 @@ def find_nearest(array,value):
         return idx#array[idx]
 def all_same(items):
     return all(x == items[0] for x in items)
-def reduced_chi_square(data_wave,data,data_err,model_wave,model):
+def reduced_chi_square(data_wave, data, data_err, model_wave, model):
     n=len(data_wave)
     chi_square = 0
     for i in range(n):
@@ -1440,6 +1219,324 @@ def reduced_chi_square(data_wave,data,data_err,model_wave,model):
     dof = n-2
     reduced_chi_square = chi_square/dof
     return reduced_chi_square
+def smooth_model_spec(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_NIR=50, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+
+    mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('optical kernel:',flux_radius_opt)
+    gauss_kernel_opt = Gaussian1DKernel(flux_radius_opt)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_opt = convolve(model, gauss_kernel_opt)
+    model_flux_f_opt = interpolate.interp1d(model_wave, model_opt)
+    
+    model_NIR = convolve(model, gauss_kernel_NIR)
+    model_flux_f_NIR = interpolate.interp1d(model_wave, model_NIR)
+
+    n=len(data_wave)
+    model_flux_smooth = np.zeros(n)
+    for i in range(n):
+        model_flux_interp = model_flux_f_NIR(data_wave[i])
+        model_flux_smooth[i]=model_flux_interp
+
+    return data_wave/(1+redshift_1), model_flux_smooth
+def smooth_model_spec_M13(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_NIR=50, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+
+    # mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('optical kernel:',flux_radius_opt)
+    gauss_kernel_opt = Gaussian1DKernel(flux_radius_opt)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    # print('Two region kernel ratios:',flux_radius_NIR/flux_radius_opt)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_wave_interp = np.zeros(850)
+    model_flux_interp = np.zeros(850)
+    model_wave_interp[:354]=model_wave[198:552]
+    model_flux_interp[:354]=model[198:552]
+    
+    x_data = model_wave[552:670]
+    y_data = model[552:670]
+    t = np.linspace(0, 1, len(x_data))
+    num = int(len(x_data)/(flux_radius_NIR/flux_radius_opt)+0.5)
+    # print('interpolated between 1e4 to 1.6e4 with original 118 points:',num)
+    t2 = np.linspace(0, 1, num)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[354:354+num]=x2
+    model_flux_interp[354:354+num]=y2
+
+    n = len(data_wave)
+    model_flux_smooth = np.zeros(n)
+    model_opt = convolve(model_flux_interp, gauss_kernel_opt)
+    model_flux_f_opt = interpolate.interp1d(model_wave_interp, model_opt)
+
+    for i in range(n):
+        model_flux_interp = model_flux_f_opt(data_wave[i])
+        model_flux_smooth[i] = model_flux_interp
+        
+    return data_wave/(1+redshift_1), model_flux_smooth
+def smooth_model_spec_BC(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_opt_2, sampling_l_NIR=33.3, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+
+    mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt_1 = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                                 (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt_1 = int(np.sqrt((RADIUS*23.25)**2-
+                                    (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('opt kernel 1:',flux_radius_opt_1)
+    gauss_kernel_opt_1 = Gaussian1DKernel(flux_radius_opt_1)
+    
+    # flux_radius_opt_2 = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                                 (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt_2*(1+redshift_1))+0.5)
+    flux_radius_opt_2 = int(np.sqrt((RADIUS*23.25)**2-
+                                    (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt_2*(1+redshift_1))+0.5)
+    # print('opt kernel 2:',flux_radius_opt_2)
+    gauss_kernel_opt_2 = Gaussian1DKernel(flux_radius_opt_2)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                               (delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2-
+                                  (delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_wave_interp = np.zeros(15000)
+    model_flux_interp = np.zeros(15000)
+    model_wave_interp[:2750] = model_wave[3056:5806]
+    model_flux_interp[:2750] = model[3056:5806]
+    
+    x_data = model_wave[5806:5881]
+    y_data = model[5806:5881]
+    t = np.linspace(0, 1, len(x_data))
+    num1 = int(len(x_data)/(flux_radius_opt_2/flux_radius_opt_1)+0.5)
+    # print('BC model interpolated between 8750 to 1e4 with original 75 points:',num1)
+    t2 = np.linspace(0, 1, num1)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[2750:2750+num1]=x2
+    model_flux_interp[2750:2750+num1]=y2
+    
+    x_data = model_wave[5881:6062]
+    y_data = model[5881:6062]
+    t = np.linspace(0, 1, len(x_data))
+    num2 = int(len(x_data)/(flux_radius_NIR/flux_radius_opt_1)+0.5)
+    # print('BC model interpolated between 1e4 to 1.6e4 with original 181 points:',num2)
+    t2 = np.linspace(0, 1, num2)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[2750+num1:2750+num1+num2]=x2
+    model_flux_interp[2750+num1:2750+num1+num2]=y2
+    
+    
+    model_opt = convolve(model_flux_interp, gauss_kernel_opt_1)
+    model_flux_f_opt = interpolate.interp1d(model_wave_interp, model_opt)
+
+    n = len(data_wave)
+    model_flux_smooth = np.zeros(n)
+    for i in range(n):
+        model_flux_interp = model_flux_f_opt(data_wave[i])
+        model_flux_smooth[i]=model_flux_interp
+
+    return data_wave/(1+redshift_1), model_flux_smooth
+def reduced_chi_square_obs(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_NIR=50, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+    # Compare in the observed frame, interpolate the model spec to match with the observations.
+    # Kernel is the kernel size for the smoothness.
+    # the input data_wave, the input data are in the rest frame, need to move to the observed frame first for the comparison.
+    mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('optical kernel:',flux_radius_opt)
+    gauss_kernel_opt = Gaussian1DKernel(flux_radius_opt)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_opt = convolve(model, gauss_kernel_opt)
+    model_flux_f_opt = interpolate.interp1d(model_wave, model_opt)
+    
+    model_NIR = convolve(model, gauss_kernel_NIR)
+    model_flux_f_NIR = interpolate.interp1d(model_wave, model_NIR)
+
+    n=len(data_wave)
+    model_flux_smooth = np.zeros(n)
+    chi_square = 0
+
+    for i in range(n):
+        model_flux_interp = model_flux_f_NIR(data_wave[i])
+        chi_square += (data[i]-model_flux_interp)**2/(data_err[i]**2)
+
+    dof = n-2
+    reduced_chi_square = chi_square/dof
+    return reduced_chi_square
+def reduced_chi_square_obs_M13(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_NIR=50, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+
+    mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('optical kernel:',flux_radius_opt)
+    gauss_kernel_opt = Gaussian1DKernel(flux_radius_opt)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2
+    #                               -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2
+                                  -(delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    # print('Two region kernel ratios:',flux_radius_NIR/flux_radius_opt)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_wave_interp = np.zeros(850)
+    model_flux_interp = np.zeros(850)
+    model_wave_interp[:354] = model_wave[198:552]
+    model_flux_interp[:354] = model[198:552]
+    
+    x_data = model_wave[552:670]
+    y_data = model[552:670]
+    t = np.linspace(0, 1, len(x_data))
+    num = int(len(x_data)/(flux_radius_NIR/flux_radius_opt)+0.5)
+    # print('interpolated between 1e4 to 1.6e4 with original 118 points:',num)
+    t2 = np.linspace(0, 1, num)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[354:354+num]=x2
+    model_flux_interp[354:354+num]=y2
+    
+    n = len(data_wave)
+    model_flux_smooth = np.zeros(n)
+
+    model_opt = convolve(model_flux_interp, gauss_kernel_opt)
+    model_flux_f_opt = interpolate.interp1d(model_wave_interp, model_opt)
+    
+    chi_square = 0
+    for i in range(n):
+        model_flux_interp = model_flux_f_opt(data_wave[i])
+        model_flux_smooth[i]=model_flux_interp
+        chi_square += (data[i]-model_flux_interp)**2/(data_err[i]**2)
+
+    dof = n-2
+    reduced_chi_square = chi_square/dof
+    return reduced_chi_square
+def reduced_chi_square_obs_BC(data_wave, data, data_err, model_wave, model, sampling_l_opt, delta_l_opt, sampling_l_opt_2, sampling_l_NIR=33.3, delta_l_NIR=50/2.35):
+    from astropy.convolution import Gaussian1DKernel, convolve
+
+    # mask = (model_wave >= data_wave[0]) & (model_wave <= data_wave[-1])
+    
+    # flux_radius_opt_1 = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                                 (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    flux_radius_opt_1 = int(np.sqrt((RADIUS*23.25)**2-
+                                    (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt*(1+redshift_1))+0.5)
+    # print('opt kernel 1:',flux_radius_opt_1)
+    gauss_kernel_opt_1 = Gaussian1DKernel(flux_radius_opt_1)
+    
+    # flux_radius_opt_2 = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                                 (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt_2*(1+redshift_1))+0.5)
+    flux_radius_opt_2 = int(np.sqrt((RADIUS*23.25)**2-
+                                    (delta_l_opt*(1+redshift_1))**2)/(sampling_l_opt_2*(1+redshift_1))+0.5)
+    # print('opt kernel 2:',flux_radius_opt_2)
+    gauss_kernel_opt_2 = Gaussian1DKernel(flux_radius_opt_2)
+    
+    # flux_radius_NIR = int(np.sqrt((df_photometry.iloc[ID-1].flux_radius*23.25)**2-
+    #                               (delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    flux_radius_NIR = int(np.sqrt((RADIUS*23.25)**2-
+                                  (delta_l_NIR*(1+redshift_1))**2)/(sampling_l_NIR*(1+redshift_1))+0.5)
+    # print('NIR kernel:',flux_radius_NIR)
+    gauss_kernel_NIR = Gaussian1DKernel(flux_radius_NIR)
+
+    data_wave = data_wave*(1+redshift_1)
+    model_wave = model_wave*(1+redshift_1)
+    
+    model_wave_interp = np.zeros(15000)
+    model_flux_interp = np.zeros(15000)
+    model_wave_interp[:2750]=model_wave[3056:5806]
+    model_flux_interp[:2750]=model[3056:5806]
+    
+    x_data = model_wave[5806:5881]
+    y_data = model[5806:5881]
+    t = np.linspace(0, 1, len(x_data))
+    num1 = int(len(x_data)/(flux_radius_opt_2/flux_radius_opt_1)+0.5)
+    # print('BC model interpolated between 8750 to 1e4 with original 75 points:',num1)
+    t2 = np.linspace(0, 1, num1)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[2750:2750+num1]=x2
+    model_flux_interp[2750:2750+num1]=y2
+    
+    x_data = model_wave[5881:6062]
+    y_data = model[5881:6062]
+    t = np.linspace(0, 1, len(x_data))
+    num2 = int(len(x_data)/(flux_radius_NIR/flux_radius_opt_1)+0.5)
+    # print('BC model interpolated between 1e4 to 1.6e4 with original 181 points:',num2)
+    t2 = np.linspace(0, 1, num2)
+    x2 = np.interp(t2, t, x_data)
+    y2 = np.interp(t2, t, y_data)
+    model_wave_interp[2750+num1:2750+num1+num2]=x2
+    model_flux_interp[2750+num1:2750+num1+num2]=y2
+    
+    model_opt = convolve(model_flux_interp, gauss_kernel_opt_1)
+    # print(model_opt)
+    model_flux_f_opt = interpolate.interp1d(model_wave_interp, model_opt)
+    
+    n = len(data_wave)
+    model_flux_smooth = np.zeros(n)
+    chi_square = 0
+    for i in range(n):
+        model_flux_interp = model_flux_f_opt(data_wave[i])
+        model_flux_smooth[i] = model_flux_interp
+        chi_square += (data[i]-model_flux_interp)**2/(data_err[i]**2)
+    dof = n-2
+    reduced_chi_square = chi_square/dof
+    
+    return reduced_chi_square
+
 def chisquare_photo(model_wave, model_flux, redshift_1,wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod):
     """
     work in the observed frame
@@ -1609,7 +1706,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200426'
+date='20200702'
 plot_dir = 'plot/'+str(date)+'_uds/'
 
 tik = time.time()
@@ -1631,7 +1728,7 @@ for i in range(1,15):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in range(len(df)-1,len(df)):
+for i in range(len(df)):
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -1798,6 +1895,21 @@ for i in range(len(df)-1,len(df)):
     print('0th coeff from polyfit after masking:',np.unique(y_fit))
 
     print('photo flux: ',photometric_flux,len(photometric_flux[photometric_flux>0]))
+        ## masking out SNR>3 spectroscopic data points
+    mask_SNR3_spec = np.where(y/y_err>3)
+    x = x[mask_SNR3_spec]
+    y = y[mask_SNR3_spec]
+    y_err = y_err[mask_SNR3_spec]
+
+    ## Read the ORIENTAT parameter
+    # FULL_DRZ_filename = '/home/siqi/AEGIS_WFC3_V4.1.5/cosmos-'+"{0:02d}".format(region)+'/cosmos-'+"{0:02d}".format(region)+'-F140W_drz_sci.fits'
+    # hdul_full_FLT = fits.open(FULL_DRZ_filename)
+    # ORIENTAT = hdul_full_FLT[0].header['ORIENTAT']
+    # A_image = df_photometry.iloc[ID-1].a_image
+    # PA = df_photometry.iloc[ID-1].theta_J2000
+    # RADIUS = A_image* abs(np.cos(np.pi- ORIENTAT/180*np.pi-PA/180*np.pi))
+    RADIUS = df_photometry.iloc[ID-1].flux_radius
+    print('Corrected RADIUS:',RADIUS)
 # Using bounds to constrain M05
     print('____________________M05_________________________ Optimization__________________________')
     X = np.array([galaxy_age, intrinsic_Av])
@@ -1822,11 +1934,9 @@ for i in range(len(df)-1,len(df)):
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-    model_wave, model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-    sampling_model = interpolate.interp1d(model_wave,model_flux)
-    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-    sampling_flux = sampling_model(sampling_wave)
-    plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
+    model_wave, model_flux, model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+    plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
+    plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -1837,10 +1947,8 @@ for i in range(len(df)-1,len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    model_flux_grism = sampling_model(x)
-    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+    plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -1922,11 +2030,9 @@ for i in range(len(df)-1,len(df)):
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-            model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-            sampling_model = interpolate.interp1d(model_wave,model_flux)
-            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-            sampling_flux = sampling_model(sampling_wave)
-            plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
+            model_wave, model_flux,model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+            plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
+            plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -1938,9 +2044,8 @@ for i in range(len(df)-1,len(df)):
 
             frame2 = fig1.add_axes((.1,.2,.8,.15)) 
             model_flux_grism = sampling_model(x)
-            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
+            plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2021,11 +2126,10 @@ for i in range(len(df)-1,len(df)):
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-                model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-                sampling_model = interpolate.interp1d(model_wave,model_flux)
-                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-                sampling_flux = sampling_model(sampling_wave)
-                plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
+                model_wave, model_flux, model_wave_smooth, model_flux_smooth =minimize_age_AV_vector_weighted_return_flux(X)[1:]
+                plt.step(model_wave, model_flux, color='k',label='TP-AGB heavy original resolution',lw=0.5)
+                plt.step(model_wave_smooth, model_flux_smooth, color='k', label='TP-AGB heavy, smoothed, sampled at grism resolution', lw=2, zorder =100)
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2036,10 +2140,8 @@ for i in range(len(df)-1,len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                model_flux_grism = sampling_model(x)
-                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
@@ -2088,11 +2190,9 @@ for i in range(len(df)-1,len(df)):
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-    model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-    sampling_model = interpolate.interp1d(model_wave,model_flux)
-    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-    sampling_flux = sampling_model(sampling_wave)
-    plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
+    model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+    plt.step(model_wave, model_flux, color='green',label='TP-AGB mild original resolution',lw=0.5)
+    plt.step(model_wave_smooth, model_flux_smooth, color='green', label='TP-AGB mild, smoothed, sampled at grism resolution', lw=2, zorder =100)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -2103,10 +2203,8 @@ for i in range(len(df)-1,len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
     frame2 = fig1.add_axes((.1,.2,.8,.15)) 
-    model_flux_grism = sampling_model(x)
-    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
+    plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -2192,11 +2290,9 @@ for i in range(len(df)-1,len(df)):
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-            model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-            sampling_model = interpolate.interp1d(model_wave,model_flux)
-            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-            sampling_flux = sampling_model(sampling_wave)
-            plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
+            model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+            plt.step(model_wave, model_flux, color='green',label='TP-AGB mild original resolution',lw=0.5)
+            plt.step(model_wave_smooth, model_flux_smooth, color='green', label='TP-AGB mild smoothed, sampled at grism resolution', lw=2, zorder =100)
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -2207,10 +2303,8 @@ for i in range(len(df)-1,len(df)):
             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
             
             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-            model_flux_grism = sampling_model(x)
-            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+            plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2295,11 +2389,11 @@ for i in range(len(df)-1,len(df)):
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-                model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-                sampling_model = interpolate.interp1d(model_wave,model_flux)
-                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-                sampling_flux = sampling_model(sampling_wave)
-                plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
+                model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
+                plt.step(model_wave, model_flux, color='green',label='TP-AGB mild original resolution',lw=0.5)
+                plt.step(model_wave_smooth, model_flux_smooth, color='green', label='TP-AGB mild smoothed, sampled at grism resolution', lw=2, zorder =100)
+
+
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2310,11 +2404,8 @@ for i in range(len(df)-1,len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
                 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                model_flux_grism = sampling_model(x)
-                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()
                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
@@ -2358,13 +2449,9 @@ for i in range(len(df)-1,len(df)):
     plt.step(x, y, color='r',lw=3)
     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-    BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-    model_wave = BC03_wave_list_num
-    model_flux = BC03_flux_attenuated  
-    sampling_model = interpolate.interp1d(model_wave,model_flux)
-    sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-    sampling_flux = sampling_model(sampling_wave)
-    plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
+    model_wave, model_flux,model_wave_smooth, model_flux_smooth = minimize_age_AV_vector_weighted_BC03_return_flux(X)[1:]
+    plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
+    plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.2])
     plt.semilogx()
@@ -2375,10 +2462,8 @@ for i in range(len(df)-1,len(df)):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    model_flux_grism = sampling_model(x)
-    plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+    plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
     plt.xlim([2.5e3,1.9e4])
     plt.semilogx()
@@ -2462,13 +2547,9 @@ for i in range(len(df)-1,len(df)):
             plt.step(x, y, color='r',lw=3)
             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-            BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-            model_wave = BC03_wave_list_num
-            model_flux = BC03_flux_attenuated
-            sampling_model = interpolate.interp1d(model_wave,model_flux)
-            sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-            sampling_flux = sampling_model(sampling_wave)
-            plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
+            model_wave, model_flux, model_wave_smooth, model_flux_smooth  = minimize_age_AV_vector_weighted_BC03_return_flux(X)[1:]
+            plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
+            plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
             plt.xlim([2.5e3,1.9e4])
             plt.ylim([0.05, 1.2])
             plt.semilogx()
@@ -2480,9 +2561,8 @@ for i in range(len(df)-1,len(df)):
 
             frame2 = fig1.add_axes((.1,.2,.8,.15)) 
             model_flux_grism = sampling_model(x)
-            plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+            plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-            # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
  
             plt.xlim([2.5e3,1.9e4])
             plt.semilogx()
@@ -2565,13 +2645,9 @@ for i in range(len(df)-1,len(df)):
                 plt.step(x, y, color='r',lw=3)
                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-                BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-                model_wave = BC03_wave_list_num
-                model_flux = BC03_flux_attenuated
-                sampling_model = interpolate.interp1d(model_wave,model_flux)
-                sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-                sampling_flux = sampling_model(sampling_wave)
-                plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
+                model_wave, model_flux, model_wave_smooth, model_flux_smooth= minimize_age_AV_vector_weighted_BC03_mod_return_flux(X)[1:]
+                plt.step(model_wave, model_flux, color='orange',label='TP-AGB light original resolution',lw=0.5)
+                plt.step(model_wave_smooth, model_flux_smooth, color='orange', label='TP-AGB light smoothed, sampled at grism resolution', lw=2, zorder =100)
                 plt.xlim([2.5e3,1.9e4])
                 plt.ylim([0.05, 1.2])
                 plt.semilogx()
@@ -2582,10 +2658,8 @@ for i in range(len(df)-1,len(df)):
                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-                model_flux_grism = sampling_model(x)
-                plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
+                plt.step(x, (y-model_flux_smooth)/y_err, color='r', linewidth=0.5)
                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-                # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
 
                 plt.xlim([2.5e3,1.9e4])
                 plt.semilogx()

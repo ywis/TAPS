@@ -18,36 +18,15 @@ from multiprocessing import Pool,cpu_count
 import warnings
 warnings.filterwarnings('ignore')
 
-
 ## Configure git environment
 import os
 import psycopg2
 print(psycopg2.__version__)
 sys.path.append('/home/siqi/TAPS/TAPS/TAPS/grizli/')
 sys.path.append('/home/siqi/TAPS/TAPS/TAPS/tristars/')
-# get grizli
-# !git clone https://github.com/gbrammer/grizli.git
-# os.chdir('/Users/Siqi/grizli/')
-# bashCommand = "git checkout cfe91b22642661750e5c47c48517f5a1fcf01cc6"
-# process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-# output, error = process.communicate()
-# # !git checkout cfe91b22642661750e5c47c48517f5a1fcf01cc6
-# # #print(os.listdir())
-# bashCommand = 'python setup.py build_ext --inplace'
-# process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-# output, error = process.communicate()
-# !python setup.py build_ext --inplace
 import grizli
 from grizli import model
 print(grizli.__version__)
-# os.chdir('/Users/Siqi/grizli/tristars/')
-# bashCommand = 'python setup.py install'
-# process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-# output, error = process.communicate()
-# !python setup.py install
-
-
-
 
 
 ncpu = cpu_count()
@@ -810,9 +789,6 @@ def minimize_age_AV_vector_weighted_return_chi2_sep(X):
         print('ValueError', x2)
     return x2, x2_photo
 def minimize_age_AV_vector_weighted_grizli(X):
-    weight1 = 1./2.16#12.88#8.49#7.17#5.78#4.6
-    weight2 = 1./5.2*2#11.7#17.9#24.2#36.8#57.6
-
     from scipy.interpolate import interp1d
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -884,7 +860,7 @@ def minimize_age_AV_vector_weighted_grizli(X):
     flux = smooth_Flux_Ma_1Gyr_new
 
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -903,24 +879,25 @@ def minimize_age_AV_vector_weighted_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -928,13 +905,16 @@ def minimize_age_AV_vector_weighted_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='k')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
-
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
@@ -946,9 +926,7 @@ def minimize_age_AV_vector_weighted_grizli(X):
         print('ValueError', x2_tot)
     return x2_tot
 def lg_minimize_age_AV_vector_weighted_grizli(X):
-    weight1 = 1./2.16#12.88#8.49#7.17#5.78#4.6
-    weight2 = 1./5.2*2#11.7#17.9#24.2#36.8#57.6
-    
+    from scipy.interpolate import interp1d
     galaxy_age= X[0]
     intrinsic_Av = X[1]
     print('minimize process age av grid',X)
@@ -1020,7 +998,7 @@ def lg_minimize_age_AV_vector_weighted_grizli(X):
     flux = smooth_Flux_Ma_1Gyr_new
 
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -1039,24 +1017,25 @@ def lg_minimize_age_AV_vector_weighted_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -1064,14 +1043,17 @@ def lg_minimize_age_AV_vector_weighted_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='k')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
-
 
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
@@ -1087,9 +1069,6 @@ def lg_minimize_age_AV_vector_weighted_grizli(X):
         print('lnprob:',lnprobval, chi2_nu_spec, x2_photo,galaxy_age,intrinsic_Av)
     return lnprobval
 def minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X):
-    weight1 = 1./2.16#12.88#8.49#7.17#5.78#4.6
-    weight2 = 1./5.2*2#11.7#17.9#24.2#36.8#57.6
-
     from scipy.interpolate import interp1d
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1161,7 +1140,7 @@ def minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X):
     flux = smooth_Flux_Ma_1Gyr_new
 
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -1180,24 +1159,25 @@ def minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -1205,14 +1185,18 @@ def minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
-             color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
-
+    plt.step(wave, 
+             C_grism*flux, color='k')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
+             color='k',zorder=100,label='forward modeled model M13 sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
+    
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
             x2_tot = 0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo
@@ -1223,9 +1207,6 @@ def minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X):
         print('ValueError', x2_tot)
     return chi2_nu_spec, x2_photo
 def plot_grizli_fit(X,beam_g141):
-    weight1 = 1./2.16#12.88#8.49#7.17#5.78#4.6
-    weight2 = 1./5.2*2#11.7#17.9#24.2#36.8#57.
-    
     from scipy.interpolate import interp1d
     galaxy_age= X[0]
     intrinsic_Av = X[1]
@@ -1297,7 +1278,7 @@ def plot_grizli_fit(X,beam_g141):
     flux = smooth_Flux_Ma_1Gyr_new
 
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -1316,24 +1297,25 @@ def plot_grizli_fit(X,beam_g141):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -1341,73 +1323,99 @@ def plot_grizli_fit(X,beam_g141):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='k')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
 
 
     # plot in observed-frame
     plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
-    fig=plt.figure(figsize=[12,8],dpi=100)
+    fig=plt.figure(figsize=[12,8],dpi=200)
     ax1 = fig.add_subplot(111)
-    plt.step(x,C_forward_grism*forward_model_flux,\
+    plt.step(x, 
+             C_forward_grism*forward_model_flux,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
-    plt.step(wave_wave,C_grism*wave_flux,color='k',alpha=0.5,label='original model M05')
+    plt.step(wave_wave*(1+redshift_1),\
+             C_grism*wave_flux,
+             color='k',zorder=200,alpha=0.5,label='original model M05')
     plt.step(x, y, color='r',lw=3,label='grism data')
-    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.fill_between(x, (y+y_err), (y-y_err),alpha=0.2,color='gray',label='grism error region')
     plt.ylabel('Normed at F140W')
     plt.legend(loc='best')
     plt.xlabel(r'wave[$\rm \AA$] (observed-frame)')
     ax2 = ax1.twinx()
     ax2.plot(beam_g141.beam.lam, beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
     ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
-    figname=current_dir+outcome_dir+plot_dir+'Forward_Modelling_goodss_M05_'\
-                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)+'_AV_'+"{0:.1f}".format(intrinsic_Av)+'.png'
+    figname=current_dir+outcome_dir+plot_dir+'Forward_Modelling_GOODSS_M05_'\
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'.pdf'
     plt.savefig(figname)
     plt.clf()
     
     # Plot in rest frame
     plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
-    fig=plt.figure(figsize=[12,8],dpi=100)
+    fig=plt.figure(figsize=[12,8],dpi=200)
     ax1 = fig.add_subplot(111)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
-    plt.step(wave_wave/(1+redshift_1),C_grism*wave_flux,color='k',alpha=0.5,label='original model M05')
+    plt.step(wave_wave,
+             C_grism*wave_flux,
+             zorder=200,color='k',alpha=0.5,label='original model M05')
     plt.step(x/(1+redshift_1), y, color='r',lw=3,label='grism data')
     plt.fill_between(x/(1+redshift_1),(y+y_err),(y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.axvline(8498,color='k')
+    plt.axvline(8542,color='k')
+    plt.axvline(8662,color='k')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     plt.ylabel('Normed at F140W')
     plt.legend(loc='best')
     plt.xlabel(r'wave[$\rm \AA$] (rest-frame)')
     ax2 = ax1.twinx()
     ax2.plot(beam_g141.beam.lam/(1+redshift_1), beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
     ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
-    figname=current_dir+outcome_dir+plot_dir+'Forward_Modelling_goodss_M05_'\
-                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)+'_AV_'+"{0:.1f}".format(intrinsic_Av)+'_rf.png'
+    figname = current_dir+outcome_dir+plot_dir+'Forward_Modelling_GOODSS_M05_'\
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'_rf.pdf'
     plt.savefig(figname)
     plt.clf()
-
+    
     ### Full SED
     n = len(x)
-    fig1 = plt.figure(figsize=(20,10))
+    fig1 = plt.figure(figsize=(20,10),dpi=200)
     frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.step(x/(1+redshift_1), y, color='r',lw=3)
-    plt.fill_between(x/(1+redshift_1),(y+y_err),(y-y_err),alpha=0.1)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(x/(1+redshift_1),
+             y/C_grism,
+             color='r',lw=3)
+    plt.fill_between(x/(1+redshift_1),
+                     (y+y_err)/C_grism,
+                     (y-y_err)/C_grism,
+                     alpha=0.1)
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux/C_grism,\
              color='k',zorder=100,label='forward modeled model M05 sampled at grism resolution')
-    plt.errorbar(wave_list/(1+redshift_1), photometric_flux, \
+    plt.errorbar(wave_list/(1+redshift_1), 
+                 photometric_flux/C_grism,\
                  xerr=band_list/(1+redshift_1), \
-                 yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-    chisquare_photo(wave/(1+redshift_1), C_grism*flux, redshift_1,\
-                    wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux,\
-                    photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux, color='k',label='TP-AGB heavy',lw=0.5)
+                 yerr=photometric_flux_err_mod/C_grism, color='r', fmt='o', label='photometric data', markersize='14')
+    chisquare_photo(wave, flux, redshift_1,\
+                    wave_list/(1+redshift_1), band_list/(1+redshift_1),
+                    photometric_flux/C_grism,\
+                    photometric_flux_err/C_grism, photometric_flux_err_mod/C_grism)
+    plt.step(wave, flux, color='k',label='TP-AGB heavy',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.3])
     plt.semilogx()
+    plt.axvline(5500)
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
     plt.legend(loc='best',fontsize=24)
@@ -1415,8 +1423,9 @@ def plot_grizli_fit(X,beam_g141):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    plt.step(x/(1+redshift_1), (y-C_forward_grism*forward_model_flux)/y_err, color='r', linewidth=0.5)
-    syn_photometry_list = synthetic_photo(wave/(1+redshift_1), C_grism*flux,\
+    plt.step(x/(1+redshift_1),
+             (y-C_forward_grism*forward_model_flux)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(wave, C_grism*flux,\
                           redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1),\
                           photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
@@ -1857,11 +1866,12 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep(X):
         print('ValueError', x2)
     return x2, x2_photo
 def minimize_age_AV_vector_weighted_M13_grizli(X):
+    # Input x is in the observed frame.
+    # model spec will be moved to the observed frame to match with the input x
     from scipy.interpolate import interp1d
 
     galaxy_age= X[0]
     intrinsic_Av = X[1]
-    print('minimize process age av grid M13:',X)
 
     n=len(x)
     age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
@@ -1924,16 +1934,14 @@ def minimize_age_AV_vector_weighted_M13_grizli(X):
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326
+    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
     wave = model2[0,:]
     flux = smooth_Flux_M13_1Gyr_new
-    print('norm wave',model2[0,326])
-
-
+    
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -1944,7 +1952,7 @@ def minimize_age_AV_vector_weighted_M13_grizli(X):
     e = e[flat_mask]
 
     w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
-                                                   ivar=beam_g141.ivar)
+                                           ivar=beam_g141.ivar)
     flat_mask = [~np.isnan(f)]
     w = w[flat_mask]
     f = f[flat_mask]
@@ -1952,24 +1960,25 @@ def minimize_age_AV_vector_weighted_M13_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -1977,16 +1986,18 @@ def minimize_age_AV_vector_weighted_M13_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux,color='g')
-    print('nofmed flux check again',flux[326])
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='g')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
-    print('C_grism',C_grism)
+
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
             x2_tot = 0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo
@@ -1997,11 +2008,12 @@ def minimize_age_AV_vector_weighted_M13_grizli(X):
         print('ValueError', x2_tot)
     return x2_tot
 def lg_minimize_age_AV_vector_weighted_M13_grizli(X):
+    # Input x is in the observed frame.
+    # model spec will be moved to the observed frame to match with the input x
     from scipy.interpolate import interp1d
 
     galaxy_age= X[0]
     intrinsic_Av = X[1]
-    print('minimize process age av grid M13:',X)
 
     n=len(x)
     age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
@@ -2064,15 +2076,14 @@ def lg_minimize_age_AV_vector_weighted_M13_grizli(X):
     spectra_extinction = calzetti00(model2[0,:], intrinsic_Av, 4.05)
     spectra_flux_correction = 10**(-0.4*spectra_extinction)
     M13_flux_center = model2[1,:]*spectra_flux_correction
-    F_M13_index = 326
+    F_M13_index = 326#126##np.where(abs(model2[0,:]-norm_wavelength)<10.5)[0][0]
     Flux_M13_norm_new = M13_flux_center[F_M13_index]
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
     wave = model2[0,:]
     flux = smooth_Flux_M13_1Gyr_new
-    print('norm wave',model2[1,326])
-
+    
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -2083,7 +2094,7 @@ def lg_minimize_age_AV_vector_weighted_M13_grizli(X):
     e = e[flat_mask]
 
     w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
-                                                   ivar=beam_g141.ivar)
+                                           ivar=beam_g141.ivar)
     flat_mask = [~np.isnan(f)]
     w = w[flat_mask]
     f = f[flat_mask]
@@ -2091,24 +2102,25 @@ def lg_minimize_age_AV_vector_weighted_M13_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -2116,12 +2128,16 @@ def lg_minimize_age_AV_vector_weighted_M13_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='g')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
 
 
@@ -2211,11 +2227,10 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X):
     smooth_Flux_M13_1Gyr_new = M13_flux_center/Flux_M13_norm_new
     wave = model2[0,:]
     flux = smooth_Flux_M13_1Gyr_new
-    print('norm wave',model2[0,326])
 
 
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -2234,24 +2249,25 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -2259,16 +2275,18 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux,color='g')
-    print('nofmed flux check again',flux[326])
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='g')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
-    print('C_grism',C_grism)
+    
     try: 
         if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
             x2_tot = 0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo
@@ -2279,11 +2297,12 @@ def minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X):
         print('ValueError', x2_tot)
     return chi2_nu_spec, x2_photo
 def plot_grizli_fit_M13(X,beam_g141):
+    # Input x is in the observed frame.
+    # model spec will be moved to the observed frame to match with the input x
     from scipy.interpolate import interp1d
 
     galaxy_age= X[0]
     intrinsic_Av = X[1]
-    # print('minimize process age av grid M13:',X)
 
     n=len(x)
     age_index = find_nearest(df_M13.Age.unique(), galaxy_age)
@@ -2353,7 +2372,7 @@ def plot_grizli_fit_M13(X,beam_g141):
     flux = smooth_Flux_M13_1Gyr_new
     
     ## 2 Beam extraction
-    beam_g141.beam.compute_model(spectrum_1d=[wave, flux]) 
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
     beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
 
     flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
@@ -2372,24 +2391,25 @@ def plot_grizli_fit_M13(X,beam_g141):
     
     # masking out the region that has the same wavelength coverage as extracted 
     # forwarded model 
-    wave_mask = (wave >= np.min(w)) & (wave <= np.max(w))
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
     wave_wave = wave[wave_mask]
     wave_flux = flux[wave_mask]
 
     # Obtain the extracted model by model extraction/flat spectrum 
     # and resample at the resolution of the model sampling rate
     # C is the scaling factor for the forwarded model to catch up with the original model.
-    ifl = interp1d(w,f/ffl,fill_value='extrapolate')(wave_wave)
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
     C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
 
     #3. Here is to interpret the model spec to match grism flux
-    forward_model_flux = interp1d(w,f/ffl,fill_value='extrapolate')(x)
-    C_forward_grism = Scale_model(y, y_err,forward_model_flux)
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
     
-    grism_mask = (wave >= np.min(x)) & (wave <= np.max(x))
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
     grism_wave = wave[grism_mask]
     grism_flux = flux[grism_mask]
-    interp_f_grism = interp1d(grism_wave,grism_flux,fill_value='extrapolate')(x)
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
     C_grism = Scale_model(y, y_err, interp_f_grism)
 
     # check uncertainties, RMS should be about unity, chi2 should be about 1
@@ -2397,24 +2417,30 @@ def plot_grizli_fit_M13(X,beam_g141):
     chi2_nu_spec = chi2/(len(y)-2)
     print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
                 len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
-    x2_photo = chisquare_photo(wave/(1+redshift_1), C_grism*flux,\
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
                redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
                photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux,color='g')
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(wave, 
+             C_grism*flux, color='g')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     print('Chi2_photo = %.1f' %(x2_photo))
 
     # plot in observed-frame
     plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
-    fig=plt.figure(figsize=[12,8],dpi=100)
+    fig=plt.figure(figsize=[12,8],dpi=200)
     ax1 = fig.add_subplot(111)
-    plt.step(x,C_forward_grism*forward_model_flux,\
+    plt.step(x, 
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-    plt.step(wave_wave,C_grism*wave_flux,color='g',alpha=0.5,label='original model M13')
+    plt.step(wave_wave*(1+redshift_1),\
+             C_grism*wave_flux,
+             color='g',alpha=0.5,label='original model M13')
     plt.step(x, y, color='r',lw=3,label='grism data')
-    plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.fill_between(x, (y+y_err), (y-y_err),alpha=0.2,color='gray',label='grism error region')
     plt.ylabel('Normed at F140W')
     plt.legend(loc='best')
     plt.xlabel(r'wave[$\rm \AA$] (observed-frame)')
@@ -2422,18 +2448,28 @@ def plot_grizli_fit_M13(X,beam_g141):
     ax2.plot(beam_g141.beam.lam, beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
     ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
     figname=current_dir+outcome_dir+plot_dir+'Forward_Modelling_goodss_M13_'\
-                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)+'_AV_'+"{0:.1f}".format(intrinsic_Av)+'.png'
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'.pdf'
     plt.savefig(figname)
+    plt.clf()
     
     # Plot in rest frame
     plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
-    fig=plt.figure(figsize=[12,8],dpi=100)
+    fig=plt.figure(figsize=[12,8],dpi=200)
     ax1 = fig.add_subplot(111)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-    plt.step(wave_wave/(1+redshift_1),C_grism*wave_flux,color='g',alpha=0.5,label='original model M13')
+    plt.step(wave_wave,
+             C_grism*wave_flux,
+             zorder=200,color='g',alpha=0.5,label='original model M13')
     plt.step(x/(1+redshift_1), y, color='r',lw=3,label='grism data')
     plt.fill_between(x/(1+redshift_1),(y+y_err),(y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.axvline(8498,color='k')
+    plt.axvline(8542,color='k')
+    plt.axvline(8662,color='k')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
     plt.ylabel('Normed at F140W')
     plt.legend(loc='best')
     plt.xlabel(r'wave[$\rm \AA$] (rest-frame)')
@@ -2441,26 +2477,38 @@ def plot_grizli_fit_M13(X,beam_g141):
     ax2.plot(beam_g141.beam.lam/(1+redshift_1), beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
     ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
     figname = current_dir+outcome_dir+plot_dir+'Forward_Modelling_goodss_M13_'\
-                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)+'_AV_'+"{0:.1f}".format(intrinsic_Av)+'_rf.png'
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'_rf.pdf'
     plt.savefig(figname)
+    plt.clf()
+    
     ### Full SED
     n = len(x)
-    fig1 = plt.figure(figsize=(20,10))
+    fig1 = plt.figure(figsize=(20,10),dpi=200)
     frame1 = fig1.add_axes((.1,.35,.8,.6))
-    plt.step(x/(1+redshift_1), y, color='r',lw=3)
-    plt.fill_between(x/(1+redshift_1),(y+y_err),(y-y_err),alpha=0.1)
-    plt.step(x/(1+redshift_1),C_forward_grism*forward_model_flux,\
+    plt.step(x/(1+redshift_1),
+             y/C_grism,
+             color='r',lw=3)
+    plt.fill_between(x/(1+redshift_1),
+                     (y+y_err)/C_grism,
+                     (y-y_err)/C_grism,
+                     alpha=0.1)
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux/C_grism,\
              color='g',zorder=100,label='forward modeled model M13 sampled at grism resolution')
-    plt.errorbar(wave_list/(1+redshift_1), photometric_flux, \
+    plt.errorbar(wave_list/(1+redshift_1), 
+                 photometric_flux/C_grism,\
                  xerr=band_list/(1+redshift_1), \
-                 yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-    chisquare_photo(wave/(1+redshift_1), C_grism*flux, redshift_1,\
-                    wave_list/(1+redshift_1), band_list/(1+redshift_1), photometric_flux,\
-                    photometric_flux_err, photometric_flux_err_mod)
-    plt.step(wave/(1+redshift_1),C_grism*flux, color='g',label='TP-AGB mild',lw=0.5)
+                 yerr=photometric_flux_err_mod/C_grism, color='r', fmt='o', label='photometric data', markersize='14')
+    chisquare_photo(wave, flux, redshift_1,\
+                    wave_list/(1+redshift_1), band_list/(1+redshift_1),
+                    photometric_flux/C_grism,\
+                    photometric_flux_err/C_grism, photometric_flux_err_mod/C_grism)
+    plt.step(wave, flux, color='g',label='TP-AGB mild',lw=0.5)
     plt.xlim([2.5e3,1.9e4])
     plt.ylim([0.05, 1.3])
     plt.semilogx()
+    plt.axvline(5500)
     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
     plt.tick_params(axis='both', which='major', labelsize=22)
     plt.legend(loc='best',fontsize=24)
@@ -2468,8 +2516,9 @@ def plot_grizli_fit_M13(X,beam_g141):
     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
 
     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-    plt.step(x/(1+redshift_1), (y-C_forward_grism*forward_model_flux)/y_err, color='r', linewidth=0.5)
-    syn_photometry_list = synthetic_photo(wave/(1+redshift_1), C_grism*flux,\
+    plt.step(x/(1+redshift_1),
+             (y-C_forward_grism*forward_model_flux)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(wave, C_grism*flux,\
                           redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1),\
                           photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
@@ -2488,7 +2537,7 @@ def plot_grizli_fit_M13(X,beam_g141):
     plt.tick_params(axis='both', which='minor', labelsize=20)
     figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'_grizli.pdf'
     plt.savefig(figname)
-
+    plt.clf()
     
 def minimize_age_AV_vector_weighted_BC03(X):
     galaxy_age= X[0]
@@ -2662,6 +2711,517 @@ def minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X):
     # x2_photo = reduced_chi_square(wave_list, photometric_flux, photometric_flux_err, BC03_wave_list_num, BC03_flux_attenuated)
     
     return x2,x2_photo
+def minimize_age_AV_vector_weighted_BC03_grizli(X):
+    # Input x is in the observed frame.
+    # model spec will be moved to the observed frame to match with the input x
+    from scipy.interpolate import interp1d
+
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+    wave = BC03_wave_list_num
+    flux = BC03_flux_attenuated
+    
+    ## 2 Beam extraction
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
+    beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
+
+    flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
+    fwv, ffl, e = beam_g141.beam.optimal_extract(flat, bin=0)
+    flat_mask = [~np.isnan(ffl)]
+    fwv = fwv[flat_mask]
+    ffl = ffl[flat_mask]
+    e = e[flat_mask]
+
+    w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
+                                           ivar=beam_g141.ivar)
+    flat_mask = [~np.isnan(f)]
+    w = w[flat_mask]
+    f = f[flat_mask]
+    e = e[flat_mask]
+    
+    # masking out the region that has the same wavelength coverage as extracted 
+    # forwarded model 
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
+    wave_wave = wave[wave_mask]
+    wave_flux = flux[wave_mask]
+
+    # Obtain the extracted model by model extraction/flat spectrum 
+    # and resample at the resolution of the model sampling rate
+    # C is the scaling factor for the forwarded model to catch up with the original model.
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
+    C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
+
+    #3. Here is to interpret the model spec to match grism flux
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
+    
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
+    grism_wave = wave[grism_mask]
+    grism_flux = flux[grism_mask]
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
+    C_grism = Scale_model(y, y_err, interp_f_grism)
+
+    # check uncertainties, RMS should be about unity, chi2 should be about 1
+    chi2 = np.sum(((C_forward_grism*forward_model_flux-y)**2/y_err**2))
+    chi2_nu_spec = chi2/(len(y)-2)
+    print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
+                len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
+               redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
+               photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.step(wave, 
+             C_grism*flux, color='orange')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model BC sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    print('Chi2_photo = %.1f' %(x2_photo))
+
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
+            x2_tot = 0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: # NaN value case
+        x2_tot = np.inf
+        print('ValueError', x2_tot)
+    return x2_tot
+def lg_minimize_age_AV_vector_weighted_BC03_grizli(X):
+    # Input x is in the observed frame.
+    # model spec will be moved to the observed frame to match with the input x
+    from scipy.interpolate import interp1d
+
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+    # print(galaxy_age,age_prior)
+    print(age_index)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior and age_index<220:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior and age_index<220:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+    elif age_index>=220:
+        age_index = 220-1
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+    wave = BC03_wave_list_num
+    flux = BC03_flux_attenuated
+    
+    ## 2 Beam extraction
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
+    beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
+
+    flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
+    fwv, ffl, e = beam_g141.beam.optimal_extract(flat, bin=0)
+    flat_mask = [~np.isnan(ffl)]
+    fwv = fwv[flat_mask]
+    ffl = ffl[flat_mask]
+    e = e[flat_mask]
+
+    w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
+                                           ivar=beam_g141.ivar)
+    flat_mask = [~np.isnan(f)]
+    w = w[flat_mask]
+    f = f[flat_mask]
+    e = e[flat_mask]
+    
+    # masking out the region that has the same wavelength coverage as extracted 
+    # forwarded model 
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
+    wave_wave = wave[wave_mask]
+    wave_flux = flux[wave_mask]
+
+    # Obtain the extracted model by model extraction/flat spectrum 
+    # and resample at the resolution of the model sampling rate
+    # C is the scaling factor for the forwarded model to catch up with the original model.
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
+    C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
+
+    #3. Here is to interpret the model spec to match grism flux
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
+    
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
+    grism_wave = wave[grism_mask]
+    grism_flux = flux[grism_mask]
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
+    C_grism = Scale_model(y, y_err, interp_f_grism)
+
+    # check uncertainties, RMS should be about unity, chi2 should be about 1
+    chi2 = np.sum(((C_forward_grism*forward_model_flux-y)**2/y_err**2))
+    chi2_nu_spec = chi2/(len(y)-2)
+    print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
+                len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
+               redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
+               photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.step(wave, 
+             C_grism*flux, color='orange')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
+             color='orange',zorder=100,label='forward modeled model BC sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    print('Chi2_photo = %.1f' %(x2_photo))
+
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
+            lnprobval = -0.5*(0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo)#np.log(np.exp(-0.5*(0.5*weight1*x2+0.5*weight2*x2_photo)))
+            if np.isnan(lnprobval):
+                lnprobval = -np.inf
+        else:
+            lnprobval = -np.inf
+    except ValueError: # NaN value case
+        lnprobval = -np.inf
+        print('valueError',lnprobval)
+    if np.isinf(lnprobval):
+        print('lnprob:',lnprobval, chi2_nu_spec, x2_photo,galaxy_age,intrinsic_Av)
+    return lnprobval
+def minimize_age_AV_vector_weighted_BC03_return_chi2_sep_grizli(X):
+    from scipy.interpolate import interp1d
+
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+    # print(galaxy_age,age_prior)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+    wave = BC03_wave_list_num
+    flux = BC03_flux_attenuated
+
+
+    ## 2 Beam extraction
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
+    beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
+
+    flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
+    fwv, ffl, e = beam_g141.beam.optimal_extract(flat, bin=0)
+    flat_mask = [~np.isnan(ffl)]
+    fwv = fwv[flat_mask]
+    ffl = ffl[flat_mask]
+    e = e[flat_mask]
+
+    w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
+                                           ivar=beam_g141.ivar)
+    flat_mask = [~np.isnan(f)]
+    w = w[flat_mask]
+    f = f[flat_mask]
+    e = e[flat_mask]
+    
+    # masking out the region that has the same wavelength coverage as extracted 
+    # forwarded model 
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
+    wave_wave = wave[wave_mask]
+    wave_flux = flux[wave_mask]
+
+    # Obtain the extracted model by model extraction/flat spectrum 
+    # and resample at the resolution of the model sampling rate
+    # C is the scaling factor for the forwarded model to catch up with the original model.
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
+    C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
+
+    #3. Here is to interpret the model spec to match grism flux
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
+    
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
+    grism_wave = wave[grism_mask]
+    grism_flux = flux[grism_mask]
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
+    C_grism = Scale_model(y, y_err, interp_f_grism)
+
+    # check uncertainties, RMS should be about unity, chi2 should be about 1
+    chi2 = np.sum(((C_forward_grism*forward_model_flux-y)**2/y_err**2))
+    chi2_nu_spec = chi2/(len(y)-2)
+    print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
+                len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
+               redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
+               photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.step(wave, 
+             C_grism*flux, color='orange')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model BC sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    print('Chi2_photo = %.1f' %(x2_photo))
+    
+    try: 
+        if 0.01<galaxy_age<13 and 0.0<=intrinsic_Av<=4.0 and not np.isinf(0.5*chi2_nu_spec+0.5*x2_photo):
+            x2_tot = 0.5*weight1*chi2_nu_spec+0.5*weight2*x2_photo
+        else:
+            x2_tot = np.inf
+    except ValueError: # NaN value case
+        x2_tot = np.inf
+        print('ValueError', x2_tot)
+    return chi2_nu_spec, x2_photo
+def plot_grizli_fit_BC(X,beam_g141):
+    from scipy.interpolate import interp1d
+
+    galaxy_age= X[0]
+    intrinsic_Av = X[1]
+    n=len(x)
+    age_index = find_nearest(BC03_age_list_num, galaxy_age)
+    age_prior = BC03_age_list_num[age_index]
+    AV_string = str(intrinsic_Av)
+    # print(galaxy_age,age_prior)
+
+    if galaxy_age == age_prior:
+        model3_flux = BC03_flux_array[age_index, :7125]
+    elif galaxy_age < age_prior:
+        age_interval = BC03_age_list_num[age_index+1] - BC03_age_list_num[age_index]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index+1]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index]))*1./age_interval
+    elif galaxy_age > age_prior:
+        age_interval = BC03_age_list_num[age_index] - BC03_age_list_num[age_index-1]
+        model3_flux = (BC03_flux_array[age_index, :7125]*(BC03_age_list_num[age_index]-galaxy_age) + BC03_flux_array[age_index+1, :7125]*(galaxy_age-BC03_age_list_num[age_index-1]))*1./age_interval   
+
+    spectra_extinction = calzetti00(BC03_wave_list_num, intrinsic_Av, 4.05)
+    spectra_flux_correction = 10**(-0.4*spectra_extinction)
+    BC03_flux_attenuated = model3_flux*spectra_flux_correction
+    BC03_flux_norm = BC03_flux_attenuated[2556]
+    BC03_flux_attenuated = BC03_flux_attenuated/BC03_flux_norm
+    wave = BC03_wave_list_num
+    flux = BC03_flux_attenuated
+    
+    ## 2 Beam extraction
+    beam_g141.beam.compute_model(spectrum_1d=[wave*(1+redshift_1), flux]) 
+    beam_g141.ivar = np.ones_like(beam_g141.model)/rms**2
+
+    flat = beam_g141.flat_flam.reshape(beam_g141.beam.sh_beam)
+    fwv, ffl, e = beam_g141.beam.optimal_extract(flat, bin=0)
+    flat_mask = [~np.isnan(ffl)]
+    fwv = fwv[flat_mask]
+    ffl = ffl[flat_mask]
+    e = e[flat_mask]
+
+    w, f, e = beam_g141.beam.optimal_extract(beam_g141.model, bin=0,\
+                                           ivar=beam_g141.ivar)
+    flat_mask = [~np.isnan(f)]
+    w = w[flat_mask]
+    f = f[flat_mask]
+    e = e[flat_mask]
+    
+    # masking out the region that has the same wavelength coverage as extracted 
+    # forwarded model 
+    wave_mask = (wave*(1+redshift_1) >= np.min(w)) & (wave*(1+redshift_1) <= np.max(w))
+    wave_wave = wave[wave_mask]
+    wave_flux = flux[wave_mask]
+
+    # Obtain the extracted model by model extraction/flat spectrum 
+    # and resample at the resolution of the model sampling rate
+    # C is the scaling factor for the forwarded model to catch up with the original model.
+    ifl = interp1d(w, f/ffl, fill_value='extrapolate')(wave_wave*(1+redshift_1))
+    C_model = Scale_model(wave_flux, 0.1*wave_flux, ifl)
+
+    #3. Here is to interpret the model spec to match grism flux
+    forward_model_flux = interp1d(w, f/ffl, fill_value='extrapolate')(x)
+    # interpolate the model flux in the rest frame with the grism resolution
+    C_forward_grism = Scale_model(y, y_err, forward_model_flux)
+    
+    grism_mask = (wave*(1+redshift_1) >= np.min(x)) & (wave*(1+redshift_1) <= np.max(x))
+    grism_wave = wave[grism_mask]
+    grism_flux = flux[grism_mask]
+    interp_f_grism = interp1d(grism_wave, grism_flux, fill_value='extrapolate')(x/(1+redshift_1))
+    C_grism = Scale_model(y, y_err, interp_f_grism)
+
+    # check uncertainties, RMS should be about unity, chi2 should be about 1
+    chi2 = np.sum(((C_forward_grism*forward_model_flux-y)**2/y_err**2))
+    chi2_nu_spec = chi2/(len(y)-2)
+    print('Chi2 = %.1f, dof=%d, Chi2_nu = %.2f, rms=%.3f' %(chi2,\
+                len(y)-1, chi2/(len(y)-1), np.std(((C_forward_grism*forward_model_flux-y)/y_err))))
+    x2_photo = chisquare_photo(wave, C_grism*flux,\
+               redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1), \
+               photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+    plt.step(wave, 
+             C_grism*flux, 
+             color='orange')
+    plt.step(x/(1+redshift_1), 
+             C_forward_grism*forward_model_flux,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model BC sampled at grism resolution')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    print('Chi2_photo = %.1f' %(x2_photo))
+
+    # plot in observed-frame
+    plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
+    fig=plt.figure(figsize=[12,8],dpi=200)
+    ax1 = fig.add_subplot(111)
+    plt.step(x, 
+             C_forward_grism*forward_model_flux,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model M13 sampled at grism resolution')
+    plt.step(wave_wave*(1+redshift_1),\
+             C_grism*wave_flux,
+             color='orange',
+             alpha=0.5,
+             label='original model M13')
+    plt.step(x, y, color='r',lw=3,label='grism data')
+    plt.fill_between(x, (y+y_err), (y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.ylabel('Normed at F140W')
+    plt.legend(loc='best')
+    plt.xlabel(r'wave[$\rm \AA$] (observed-frame)')
+    ax2 = ax1.twinx()
+    ax2.plot(beam_g141.beam.lam, beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
+    ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
+    figname=current_dir+outcome_dir+plot_dir+'Forward_Modelling_GOODSS_BC_'\
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    
+    # Plot in rest frame
+    plt.subplots_adjust(bottom=0.2, left=0.2, right=0.8)
+    fig=plt.figure(figsize=[12,8],dpi=200)
+    ax1 = fig.add_subplot(111)
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model M13 sampled at grism resolution')
+    plt.step(wave_wave,
+             C_grism*wave_flux,
+             zorder=200,
+             color='orange',
+             alpha=0.5,label='original model M13')
+    plt.step(x/(1+redshift_1), y, color='r',lw=3,label='grism data')
+    plt.fill_between(x/(1+redshift_1),(y+y_err),(y-y_err),alpha=0.2,color='gray',label='grism error region')
+    plt.axvline(8498,color='k')
+    plt.axvline(8542,color='k')
+    plt.axvline(8662,color='k')
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.ylabel('Normed at F140W')
+    plt.legend(loc='best')
+    plt.xlabel(r'wave[$\rm \AA$] (rest-frame)')
+    ax2 = ax1.twinx()
+    ax2.plot(beam_g141.beam.lam/(1+redshift_1), beam_g141.beam.sensitivity, label='G141',linestyle='--',color='k')
+    ax2.set_ylabel(r'Sensitivity[$\rm \frac{e^{-1}/s}{erg/s/cm^2}$]')
+    figname = current_dir+outcome_dir+plot_dir+'Forward_Modelling_GOODSS_BC_'\
+                +str(region)+'_'+str(ID)+"_age_"+"{0:.1f}".format(galaxy_age)\
+                +'_AV_'+"{0:.1f}".format(intrinsic_Av)+'_rf.pdf'
+    plt.savefig(figname)
+    plt.clf()
+    
+    ### Full SED
+    n = len(x)
+    fig1 = plt.figure(figsize=(20,10),dpi=200)
+    frame1 = fig1.add_axes((.1,.35,.8,.6))
+    plt.step(x/(1+redshift_1),
+             y/C_grism,
+             color='r',lw=3)
+    plt.fill_between(x/(1+redshift_1),
+                     (y+y_err)/C_grism,
+                     (y-y_err)/C_grism,
+                     alpha=0.1)
+    plt.step(x/(1+redshift_1),
+             C_forward_grism*forward_model_flux/C_grism,\
+             color='orange',
+             zorder=100,
+             label='forward modeled model BC sampled at grism resolution')
+    plt.errorbar(wave_list/(1+redshift_1), 
+                 photometric_flux/C_grism,\
+                 xerr=band_list/(1+redshift_1), \
+                 yerr=photometric_flux_err_mod/C_grism,
+                 color='r', fmt='o', label='photometric data', markersize='14')
+    chisquare_photo(wave, flux, redshift_1,\
+                    wave_list/(1+redshift_1), band_list/(1+redshift_1),
+                    photometric_flux/C_grism,\
+                    photometric_flux_err/C_grism, photometric_flux_err_mod/C_grism)
+    plt.step(wave, flux, color='orange',label='TP-AGB mild',lw=0.5)
+    plt.xlim([2.5e3,1.9e4])
+    plt.ylim([0.05, 1.3])
+    plt.semilogx()
+    plt.axvline(5500)
+    plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
+    plt.tick_params(axis='both', which='major', labelsize=22)
+    plt.legend(loc='best',fontsize=24)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+
+    frame2 = fig1.add_axes((.1,.2,.8,.15))  
+    plt.step(x/(1+redshift_1),
+             (y-C_forward_grism*forward_model_flux)/y_err, color='r', linewidth=0.5)
+    syn_photometry_list = synthetic_photo(wave, C_grism*flux,\
+                          redshift_1, wave_list/(1+redshift_1), band_list/(1+redshift_1),\
+                          photometric_flux, photometric_flux_err, photometric_flux_err_mod)
+
+    plt.xlim([2.5e3,1.9e4])
+    plt.semilogx()
+    plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
+    plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
+    plt.ylim([-5,5])
+    plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
+    plt.xlabel(r'Wavelength[$\rm \AA$](rest-frame) ', fontsize=20)
+    plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
+    plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
+    plt.tick_params(axis='both', which='major', labelsize=20)
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+    figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'_grizli.pdf'
+    plt.savefig(figname)
+    plt.clf()
 
 def find_nearest(array,value):
     idx = np.searchsorted(array, value, side="left")
@@ -2859,7 +3419,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1,wave_list, band_list, pho
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date = '20200601'
+date = '20200606'
 plot_dir = 'plot/'+str(date)+'_goodss/'
 
 
@@ -2924,8 +3484,8 @@ GOODSS_FLT_list=[
                 '/home/siqi/goodss_flt_files/ibhj38a4q_flt.fits'
                 ]
 
-for i in range(11,36):
-# range(len(df)):
+for i in [78]:
+#range(len(df)):
     row = i
     
     [ID, OneD_1, redshift_1, mag_1] = read_spectra(row)
@@ -2940,10 +3500,6 @@ for i in range(11,36):
     print('Galaxy age:', galaxy_age)
     A_v=0.0207    
     c=3e10
-
-    smoothing_deltal=46.5/(1+redshift_1)#*df_photometry[df_photometry.id==ID].flux_radius#787.245
-    print('smoothing_deltal',smoothing_deltal)
-
     
     chi_square_list.loc[row,'ID'] = float(ID)
     chi_square_list.loc[row,'region'] = region
@@ -3267,6 +3823,12 @@ for i in range(11,36):
     print('Number of photo points and the positive ones:',len(photometric_flux[photometric_flux>0]))
     print('Photo SNR:',len(photometric_flux[photometric_flux/photometric_flux_err>3]),np.where(photometric_flux/photometric_flux_err>3))
     plt.clf()
+    
+    ## masking out SNR>3 spectroscopic data points
+    mask_SNR3_spec = np.where(y/y_err>3)
+    x = x[mask_SNR3_spec]
+    y = y[mask_SNR3_spec]
+    y_err = y_err[mask_SNR3_spec]
 ### grizli work in the virtual env
     x = x*(1+redshift_1)
     wave_list = wave_list*(1+redshift_1)
@@ -3275,14 +3837,17 @@ for i in range(11,36):
 # Using bounds to constrain
 # Test with M05 models
     print('____________________M05_________________________ Optimization with grizli __________________________')
-    # print(wave_list)
-    # print(wave_list/(1+redshift_1))
-    # print(photometric_flux)
-    # print(photometric_flux/F140W)
-    # photometric_flux, photometric_flux_err, photometric_flux_err_mod
     bnds = ((0.01, 13.0), (0.0, 4.0))
     sol = optimize.minimize(minimize_age_AV_vector_weighted_grizli, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
     print('Optimized weighted reduced chisqure result with grizli:', sol)
+    X = sol.x
+    x2_optimized = minimize_age_AV_vector_weighted_grizli(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X)
+    chi_square_list.loc[row,'M05_age_opt'] = X[0]
+    chi_square_list.loc[row,'M05_AV_opt'] = X[1]
+    chi_square_list.loc[row,'x2_M05_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_M05_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_M05_opt'] = x2_phot
     plot_grizli_fit(sol.x,beam_g141)
 
 
@@ -3332,225 +3897,19 @@ for i in range(11,36):
             plt.rcParams.update({'font.size': 12})
             figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+"_grizli.pdf"
             fig.savefig(figname)
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_grizli(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X)
+            chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
     except:
         print('test')
-    X = np.percentile(samples, 50, axis=0)
-    x2_optimized = minimize_age_AV_vector_weighted_grizli(X)
-    x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep_grizli(X)
-    chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-    chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-    chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
-    chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
-    chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
-    chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-    chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
 
-#     with Pool() as pool:
-#         ndim, nwalkers = 2, 10
-#         tik = time.clock()
-#         p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
-#         sampler.run_mcmc(p0, nsteps, progress=True)
-#         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#         print(np.size(samples))
-#         samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
-#         tok = time.clock()
-#         multi_time = tok-tik
-#         print(np.size(samples))
-#         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#         print('Time to run M05 MCMC:'+str(tok-tik)) 
-#         print('sample size:',samples.size)       
-#     try:
-#         if samples.size > 1e3:
-#             value2 = np.percentile(samples, 50, axis=0)
-#             X = np.percentile(samples, 50, axis=0)
-#             [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
-#             plt.figure(figsize=(32,32),dpi=100)
-#             fig = corner.corner(samples,
-#                  labels=["age(Gyr)", r"$\rm A_V$"],
-#                  truths=[age_prior_optimized, AV_prior_optimized],
-#                  levels = (1-np.exp(-0.5),),
-#                  show_titles=True,title_kwargs={'fontsize':12},
-#                                 quantiles=(0.16,0.5, 0.84))
-#             axes = np.array(fig.axes).reshape((ndim, ndim))
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#                 ax.axvline(value2[i],color='r')
-#             # Loop over the histograms
-#             for yi in range(ndim):
-#                 for xi in range(yi):
-#                     ax = axes[yi, xi]
-#                     ax.axvline(X[xi], color="g")
-#                     ax.axvline(value2[xi], color="r")
-#                     ax.axhline(X[yi], color="g")
-#                     ax.axhline(value2[yi], color="r")
-#                     ax.plot(X[xi], X[yi], "sg")
-#                     ax.plot(value2[xi],value2[yi],'sr')
-#             plt.rcParams.update({'font.size': 12})
-#             figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps)+'_'+str(ID)+'_'+str(region)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#             fig.savefig(figname)
-#             fig.clf()
-#             print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
-#             #--- Plot
-#             X = np.percentile(samples, 50, axis=0)
-#             x2_optimized = minimize_age_AV_vector_weighted(X)
-#             x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
-#             chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#             chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#             chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
-#             chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
-#             chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
-#             chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#             chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
-
-#             n = len(x)
-#             fig1 = plt.figure(figsize=(20,10))
-#             frame1 = fig1.add_axes((.1,.35,.8,.6))
-#             plt.step(x, y, color='r',lw=3)
-#             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#             model_wave,model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-#             sampling_model = interpolate.interp1d(model_wave,model_flux)
-#             sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#             sampling_flux = sampling_model(sampling_wave)
-#             plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
-#             plt.semilogx()
-#             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#             plt.tick_params(axis='both', which='major', labelsize=22)
-#             plt.legend(loc='upper right',fontsize=24)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-            
-#             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#             model_flux_grism = sampling_model(x)
-#             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
-#             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#             # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.semilogx()
-#             plt.tick_params(axis='both', which='major', labelsize=20)
-#             plt.tick_params(axis='both', which='minor', labelsize=20)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)            
-#             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.ylim([-5,5])
-#             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#             figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#             print('MCMC figname',figname)
-#             plt.savefig(figname)
-#             plt.clf()
-#         else :
-#             with Pool() as pool:
-#                 print('modified steps:',nsteps)
-#                 ndim, nwalkers = 2, 10
-#                 tik = time.clock()
-#                 p0 = [sol.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted, pool=pool)
-#                 sampler.run_mcmc(p0, nsteps*2, progress=True)
-#                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#                 samples = samples[(samples[:,0] > age_prior_optimized*0.1) & (samples[:,0] < age_prior_optimized*2.0) & (samples[:,1] < AV_prior_optimized*3.0)]
-#                 tok = time.clock()
-#                 multi_time = tok-tik
-#                 print('modified sample size',np.size(samples))
-#                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#                 print('Time to run M05 MCMC:'+str(tok-tik))     
-#             if samples.size > 1e3:
-#                 value2 = np.percentile(samples, 50, axis=0)
-#                 X = np.percentile(samples,50,axis=0)
-#                 [std_age_prior_optimized, std_AV_prior_optimized] = np.std(samples, axis=0)
-#                 plt.figure(figsize=(32,32),dpi=100)
-#                 fig = corner.corner(samples,
-#                      labels=["age(Gyr)", r"$\rm A_V$"],
-#                      truths=[age_prior_optimized, AV_prior_optimized],
-#                      levels = (1-np.exp(-0.5),),
-#                      show_titles=True,title_kwargs={'fontsize':12},
-#                                     quantiles=(0.16,0.5, 0.84))
-#                 axes = np.array(fig.axes).reshape((ndim, ndim))
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                     ax.axvline(value2[i],color='r')
-#                 # Loop over the histograms
-#                 for yi in range(ndim):
-#                     for xi in range(yi):
-#                         ax = axes[yi, xi]
-#                         ax.axvline(X[xi], color="g")
-#                         ax.axvline(value2[xi], color="r")
-#                         ax.axhline(X[yi], color="g")
-#                         ax.axhline(value2[yi], color="r")
-#                         ax.plot(X[xi], X[yi], "sg")
-#                         ax.plot(value2[xi],value2[yi],'sr')
-#                 plt.rcParams.update({'font.size': 12})
-#                 figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M05_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#                 fig.savefig(figname)
-#                 fig.clf()
-#                 print('MCMC results maximum Likelihood Point M05:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
-#                 #--- Plot
-#                 X = np.percentile(samples, 50, axis=0)
-#                 x2_optimized = minimize_age_AV_vector_weighted(X)
-#                 x2_spec, x2_phot = minimize_age_AV_vector_weighted_return_chi2_sep(X)
-#                 chi_square_list.loc[row,'M05_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#                 chi_square_list.loc[row,'M05_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#                 chi_square_list.loc[row,'x2_M05_MCMC50'] = x2_optimized
-#                 chi_square_list.loc[row,'x2_spectra_M05_MCMC50'] = x2_spec
-#                 chi_square_list.loc[row,'x2_photo_M05_MCMC50'] = x2_phot
-#                 chi_square_list.loc[row,'M05_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#                 chi_square_list.loc[row,'M05_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
-
-#                 n = len(x)
-#                 fig1 = plt.figure(figsize=(20,10))
-#                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-#                 plt.step(x, y, color='r',lw=3)
-#                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#                 model_wave, model_flux =minimize_age_AV_vector_weighted_return_flux(X)[1:]
-#                 sampling_model = interpolate.interp1d(model_wave,model_flux)
-#                 sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#                 sampling_flux = sampling_model(sampling_wave)
-#                 plt.step(sampling_wave, sampling_flux, color='k',label='TP-AGB heavy',lw=0.5)
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.ylim([0.05, 1.2])
-#                 plt.semilogx()
-#                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#                 plt.tick_params(axis='both', which='major', labelsize=22)
-#                 plt.legend(loc='upper right',fontsize=24)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-                
-#                 frame2 = fig1.add_axes((.1,.2,.8,.15)) 
-#                 model_flux_grism = sampling_model(x)
-#                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
-#                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#                 # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.semilogx()
-#                 plt.tick_params(axis='both', which='major', labelsize=20)
-#                 plt.tick_params(axis='both', which='minor', labelsize=20)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.ylim([-5,5])
-#                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#                 figname=current_dir+outcome_dir+plot_dir+'GOODSS_M05_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#                 plt.savefig(figname)
-#                 plt.clf()
-#     except:
-#         pass
 
 # # Test with the new M13 models
     print('____________________M13_________________________ Optimization grizli __________________________')
@@ -3563,8 +3922,6 @@ for i in range(11,36):
         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13_grizli, X, bounds = bnds)#, method='SLSQP')#, options = {'disp': True})
         print('Optimized M13 weighted reduced chisqure result:', sol_M13)    
     X = sol_M13.x
-    plot_grizli_fit_M13(sol_M13.x,beam_g141)
-
     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
     x2_optimized = minimize_age_AV_vector_weighted_M13_grizli(X)
     x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X)
@@ -3573,6 +3930,8 @@ for i in range(11,36):
     chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
     chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
     chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
+    plot_grizli_fit_M13(sol_M13.x,beam_g141)
+
 
     with Pool() as pool:
         ndim, nwalkers = 2, 10
@@ -3627,586 +3986,97 @@ for i in range(11,36):
             fig.savefig(figname)
             fig.clf()
             print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))  
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_M13_grizli(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X)
+            chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
     except:
         pass
-    X = np.percentile(samples, 50, axis=0)
-    x2_optimized = minimize_age_AV_vector_weighted_M13_grizli(X)
-    x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep_grizli(X)
-    chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-    chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-    chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
-    chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
-    chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
-    chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-    chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
-
-#     print('____________________M13_________________________ Optimization__________________________')
-#     bnds = ((0.0, 13.0), (0.0, 4.0))
-#     X = np.array([galaxy_age, intrinsic_Av])
-#     try:
-#         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
-#         print('Optimized M13 weighted reduced chisqure result:', sol_M13)
-#     except:
-#         sol_M13 = optimize.minimize(minimize_age_AV_vector_weighted_M13, X, bounds = bnds)#, method='SLSQP')#, options = {'disp': True})
-#         print('Optimized M13 weighted reduced chisqure result:', sol_M13)    
-#     X = sol_M13.x
-#     [age_prior_optimized_M13, AV_prior_optimized_M13] = sol_M13.x
-#     x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#     x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#     chi_square_list.loc[row,'M13_age_opt'] = X[0]#"{0:.2f}".format(X[0])
-#     chi_square_list.loc[row,'M13_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
-#     chi_square_list.loc[row,'x2_M13_opt'] = x2_optimized
-#     chi_square_list.loc[row,'x2_spectra_M13_opt'] = x2_spec
-#     chi_square_list.loc[row,'x2_photo_M13_opt'] = x2_phot
-    
-#     #--- Plot
-#     X = sol_M13.x
-#     n = len(x)
-#     fig1 = plt.figure(figsize=(20,10))
-#     frame1 = fig1.add_axes((.1,.35,.8,.6))
-#     plt.step(x, y, color='r',lw=3)
-#     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#     model_wave, model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-#     sampling_model = interpolate.interp1d(model_wave,model_flux)
-#     sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#     sampling_flux = sampling_model(sampling_wave)
-#     plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.ylim([0.05, 1.2])
-#     plt.semilogx()
-#     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#     plt.tick_params(axis='both', which='major', labelsize=22)
-#     plt.legend(loc='upper right',fontsize=24)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    
-#     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#     model_flux_grism = sampling_model(x)
-#     plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
-#     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#     # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.semilogx()
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.ylim([-5,5])
-#     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#     plt.tick_params(axis='both', which='major', labelsize=20)
-#     plt.tick_params(axis='both', which='minor', labelsize=20)
-#     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#     figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#     plt.savefig(figname)
-#     plt.clf()
-
-#     with Pool() as pool:
-#         ndim, nwalkers = 2, 10
-#         tik = time.clock()
-#         p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-#         sampler.run_mcmc(p0,nsteps, progress=True)
-#         # print(np.size(samples))
-
-#         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#         samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
-#         # print(np.size(samples))
-
-#         tok = time.clock()
-#         multi_time = tok-tik
-#         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#         print('Time to run M13 MCMC:'+str(tok-tik))
-
-#     try:
-#         if samples.size > 1e3 :
-#             value2=np.percentile(samples, 50, axis=0)
-#             X = np.percentile(samples, 50, axis=0)
-#             [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
-#             plt.figure(figsize=(32,32),dpi=100)
-#             fig = corner.corner(samples,
-#                  labels=["age(Gyr)", r"$\rm A_V$"],
-#                  levels=(1-np.exp(-0.5),),
-#                  truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
-#                  show_titles=True,title_kwargs={'fontsize':12},
-#                                 quantiles=(0.16,0.5, 0.84))
-#             axes = np.array(fig.axes).reshape((ndim, ndim))
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#             # Loop over the histograms
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#                 ax.axvline(value2[i],color='r')
-#             # Loop over the histograms
-#             for yi in range(ndim):
-#                 for xi in range(yi):
-#                     ax = axes[yi, xi]
-#                     ax.axvline(X[xi], color="g")
-#                     ax.axvline(value2[xi], color="r")
-#                     ax.axhline(X[yi], color="g")
-#                     ax.axhline(value2[yi], color="r")
-#                     ax.plot(X[xi], X[yi], "sg")
-#                     ax.plot(value2[xi],value2[yi],'sr')
-#             plt.rcParams.update({'font.size': 12})
-#             figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#             fig.savefig(figname)
-#             fig.clf()
-#             print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
-#             #--- Plot
-#             X = np.percentile(samples, 50, axis=0)
-#             x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#             x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#             chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#             chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#             chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
-#             chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
-#             chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
-#             chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#             chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
-#             n = len(x)
-
-#             fig1 = plt.figure(figsize=(20,10))
-#             frame1 = fig1.add_axes((.1,.35,.8,.6))
-#             plt.step(x, y, color='r',lw=3)
-#             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#             model_wave,model_flux =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-#             sampling_model = interpolate.interp1d(model_wave,model_flux)
-#             sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#             sampling_flux = sampling_model(sampling_wave)
-#             plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.ylim([0.05, 1.2])#plt.ylim([ymin,ymax])
-#             plt.semilogx()
-#             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#             plt.tick_params(axis='both', which='major', labelsize=22)
-#             plt.legend(loc='upper right',fontsize=24)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-            
-#             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#             model_flux_grism = sampling_model(x)
-#             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
-#             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#             # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flsux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.semilogx()
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#             plt.tick_params(axis='both', which='major', labelsize=20)
-#             plt.tick_params(axis='both', which='minor', labelsize=20)
-#             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.ylim([-5,5])
-#             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#             figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#             plt.savefig(figname)
-#             plt.clf()
-#         else:
-#             with Pool() as pool:
-#                 print('modified steps:',nsteps*2)
-#                 ndim, nwalkers = 2, 10
-#                 tik = time.clock()
-#                 p0 = [sol_M13.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_M13, pool=pool)
-#                 sampler.run_mcmc(p0,nsteps*2, progress=True)
-#                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#                 samples = samples[(samples[:,0] > age_prior_optimized_M13*0.1) & (samples[:,0] < age_prior_optimized_M13*2.0) & (samples[:,1] < AV_prior_optimized_M13*3.0)]
-#                 tok = time.clock()
-#                 multi_time = tok-tik
-#                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#                 print('Time to run M13 MCMC:'+str(tok-tik))
-#             if samples.size > 1e3 :
-#                 value2=np.percentile(samples, 50, axis=0)
-#                 X = np.percentile(samples, 50, axis=0)
-#                 [std_age_prior_optimized_M13, std_AV_prior_optimized_M13] = np.std(samples, axis=0)
-#                 plt.figure(figsize=(32,32),dpi=100)
-#                 fig = corner.corner(samples,
-#                      labels=["age(Gyr)", r"$\rm A_V$"],
-#                      levels=(1-np.exp(-0.5),),
-#                      truths=[age_prior_optimized_M13, AV_prior_optimized_M13],
-#                      show_titles=True,title_kwargs={'fontsize':12},
-#                                     quantiles=(0.16,0.5, 0.84))
-#                 axes = np.array(fig.axes).reshape((ndim, ndim))
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                 # Loop over the histograms
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                     ax.axvline(value2[i],color='r')
-#                 # Loop over the histograms
-#                 for yi in range(ndim):
-#                     for xi in range(yi):
-#                         ax = axes[yi, xi]
-#                         ax.axvline(X[xi], color="g")
-#                         ax.axvline(value2[xi], color="r")
-#                         ax.axhline(X[yi], color="g")
-#                         ax.axhline(value2[yi], color="r")
-#                         ax.plot(X[xi], X[yi], "sg")
-#                         ax.plot(value2[xi],value2[yi],'sr')
-#                 plt.rcParams.update({'font.size': 12})
-#                 figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_M13_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#                 fig.savefig(figname)
-#                 fig.clf()
-#                 print('Maximum Likelihood Point M13:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-
-#                 #--- Plot
-#                 X = np.percentile(samples, 50, axis=0)
-#                 x2_optimized = minimize_age_AV_vector_weighted_M13(X)
-#                 x2_spec, x2_phot = minimize_age_AV_vector_weighted_M13_return_chi2_sep(X)
-#                 chi_square_list.loc[row,'M13_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#                 chi_square_list.loc[row,'M13_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#                 chi_square_list.loc[row,'x2_M13_MCMC50'] = x2_optimized
-#                 chi_square_list.loc[row,'x2_spectra_M13_MCMC50'] = x2_spec
-#                 chi_square_list.loc[row,'x2_photo_M13_MCMC50'] = x2_phot
-#                 chi_square_list.loc[row,'M13_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#                 chi_square_list.loc[row,'M13_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])            
-#                 n = len(x)
-
-#                 fig1 = plt.figure(figsize=(20,10))
-#                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-#                 plt.step(x, y, color='r',lw=3)
-#                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#                 model_wave =minimize_age_AV_vector_weighted_M13_return_flux(X)[1:]
-#                 sampling_model = interpolate.interp1d(model_wave,model_flux)
-#                 sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#                 sampling_flux = sampling_model(sampling_wave)
-#                 plt.step(sampling_wave, sampling_flux, color='g',label='TP-AGB mild',lw=0.5)
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.ylim([0.05, 1.2])
-#                 plt.semilogx()
-#                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#                 plt.tick_params(axis='both', which='major', labelsize=22)
-#                 plt.legend(loc='upper right',fontsize=24)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-                
-#                 frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#                 model_flux_grism = sampling_model(x)
-#                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
-#                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#                 # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.semilogx()
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#                 plt.tick_params(axis='both', which='major', labelsize=20)
-#                 plt.tick_params(axis='both', which='minor', labelsize=20)
-#                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.ylim([-5,5])
-#                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-
-#                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#                 figname=current_dir+outcome_dir+plot_dir+'GOODSS_M13_SSP_MCMC50_'+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#                 plt.savefig(figname)
-#                 plt.clf()
-#     except:
-#         pass
 
 # # Test with the new BC03 models
-#     print('____________________BC03_________________________ Optimization__________________________')
-#     bnds = ((0.0, 13.0), (0.0, 4.0))
-#     X = np.array([galaxy_age,intrinsic_Av])
-#     sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
-#     print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
-#     [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
-#     X = sol_BC03.x
-#     x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#     x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#     chi_square_list.loc[row,'BC_age_opt'] = X[0]#"{0:.2f}".format(X[0])
-#     chi_square_list.loc[row,'BC_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
-#     chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
-#     chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
-#     chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
-
-#     #--- Plot
-#     X = sol_BC03.x
-#     n = len(x)
-#     fig1 = plt.figure(figsize=(20,10))
-#     frame1 = fig1.add_axes((.1,.35,.8,.6))
-#     plt.step(x, y, color='r',lw=3)
-#     plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#     plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#     BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-#     model_wave = BC03_wave_list_num
-#     model_flux = BC03_flux_attenuated
-#     sampling_model = interpolate.interp1d(model_wave,model_flux)
-#     sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#     sampling_flux = sampling_model(sampling_wave)
-#     plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.ylim([0.05, 1.2])
-#     plt.semilogx()
-#     plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#     plt.tick_params(axis='both', which='major', labelsize=22)
-#     plt.legend(loc='upper right',fontsize=24)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-    
-#     frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#     model_flux_grism = sampling_model(x)
-#     plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)
-#     syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#     # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#     plt.xlim([2.5e3,1.9e4])
-#     plt.semilogx()
-#     plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#     plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#     plt.ylim([-5,5])
-#     plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-
-#     plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#     plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#     plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#     plt.tick_params(axis='both', which='major', labelsize=20)
-#     plt.tick_params(axis='both', which='minor', labelsize=20)
-#     figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_opt_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#     plt.savefig(figname)
-#     plt.clf()
-
-#     with Pool() as pool:
-#         ndim, nwalkers = 2, 10
-#         tik = time.clock()
-#         p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#         sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
-#         sampler.run_mcmc(p0, nsteps, progress=True)
-#         # print(np.size(samples))
-
-#         samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#         samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-#         # print(np.size(samples))
-
-#         tok = time.clock()
-#         multi_time = tok-tik
-#         print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#         print('Time to run BC03 MCMC:'+str(tok-tik))
-#     try:
-#         if samples.size > 1e3:
-#             value2=np.percentile(samples,50,axis=0)
-#             X = np.percentile(samples, 50,axis=0)
-#             [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
-#             plt.figure(figsize=(32,32),dpi=100)
-#             fig = corner.corner(samples,
-#                                 labels=["age(Gyr)", r"$\rm A_V$"],\
-#                                 truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-#                                 levels = (1-np.exp(-0.5),),\
-#                                 show_titles=True,title_kwargs={'fontsize':12},
-#                                 quantiles=(0.16,0.5, 0.84))
-#             axes = np.array(fig.axes).reshape((ndim, ndim))
-#             for i in range(ndim):
-#                 ax = axes[i, i]
-#                 ax.axvline(X[i], color="g")
-#                 ax.axvline(value2[i],color='r')
-#             # Loop over the histograms
-#             for yi in range(ndim):
-#                 for xi in range(yi):
-#                     ax = axes[yi, xi]
-#                     ax.axvline(X[xi], color="g")
-#                     ax.axvline(value2[xi], color="r")
-#                     ax.axhline(X[yi], color="g")
-#                     ax.axhline(value2[yi], color="r")
-#                     ax.plot(X[xi], X[yi], "sg")
-#                     ax.plot(value2[xi],value2[yi],'sr')
-#             plt.rcParams.update({'font.size': 12})
-#             figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#             fig.savefig(figname)
-#             fig.clf()
-#             print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-            
-#             #--- Plot
-#             X = np.percentile(samples, 50, axis=0)
-#             x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#             x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#             chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#             chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#             chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
-#             chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
-#             chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
-#             chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#             chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
-#             n = len(x)
-            
-#             fig1 = plt.figure(figsize=(20,10))
-#             frame1 = fig1.add_axes((.1,.35,.8,.6))
-#             plt.step(x, y, color='r',lw=3)
-#             plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#             plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#             BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-#             model_wave = BC03_wave_list_num
-#             model_flux = BC03_flux_attenuated            
-#             sampling_model = interpolate.interp1d(model_wave,model_flux)
-#             sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#             sampling_flux = sampling_model(sampling_wave)
-#             plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)
-
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.ylim([0.05, 1.2])
-#             plt.semilogx()
-#             plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#             plt.tick_params(axis='both', which='major', labelsize=22)
-#             plt.legend(loc='upper right',fontsize=24)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-            
-#             frame2 = fig1.add_axes((.1,.2,.8,.15))  
-#             model_flux_grism = sampling_model(x)
-#             plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5)      
-#             syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#             # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-      
-#             plt.xlim([2.5e3,1.9e4])
-#             plt.semilogx()
-#             plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#             plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#             plt.ylim([-5,5])
-#             plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#             plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#             plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#             plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#             plt.tick_params(axis='both', which='major', labelsize=20)
-#             plt.tick_params(axis='both', which='minor', labelsize=20)
-#             figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_MCMC50_'+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#             plt.savefig(figname)
-#             plt.clf()
-#         else:
-#             with Pool() as pool:
-#                 print('modified steps:',nsteps)
-#                 ndim, nwalkers = 2, 10
-#                 tik = time.clock()
-#                 p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
-#                 sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03, pool=pool)
-#                 sampler.run_mcmc(p0, nsteps*2, progress=True)
-#                 samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
-#                 samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
-#                 tok = time.clock()
-#                 multi_time = tok-tik
-#                 print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-#                 print('Time to run BC03 MCMC:'+str(tok-tik))
-#             if samples.size > 1e3:
-#                 value2=np.percentile(samples,50,axis=0)
-#                 X = np.percentile(samples,50,axis=0)
-#                 [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
-#                 plt.figure(figsize=(32,32),dpi=100)
-#                 fig = corner.corner(samples,
-#                                     labels=["age(Gyr)", r"$\rm A_V$"],\
-#                                     truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
-#                                     levels = (1-np.exp(-0.5),),\
-#                                     show_titles=True,title_kwargs={'fontsize':12},
-#                                     quantiles=(0.16,0.5, 0.84))
-#                 axes = np.array(fig.axes).reshape((ndim, ndim))
-#                 for i in range(ndim):
-#                     ax = axes[i, i]
-#                     ax.axvline(X[i], color="g")
-#                     ax.axvline(value2[i],color='r')
-#                 # Loop over the histograms
-#                 for yi in range(ndim):
-#                     for xi in range(yi):
-#                         ax = axes[yi, xi]
-#                         ax.axvline(X[xi], color="g")
-#                         ax.axvline(value2[xi], color="r")
-#                         ax.axhline(X[yi], color="g")
-#                         ax.axhline(value2[yi], color="r")
-#                         ax.plot(X[xi], X[yi], "sg")
-#                         ax.plot(value2[xi],value2[yi],'sr')
-#                 plt.rcParams.update({'font.size': 12})
-#                 figname=current_dir+outcome_dir+plot_dir+"goodss_triangle_BC03_"+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+".pdf"
-#                 fig.savefig(figname)
-#                 fig.clf()
-#                 print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
-                
-#                 #--- Plot
-#                 X = np.percentile(samples, 50, axis=0)
-#                 x2_optimized = minimize_age_AV_vector_weighted_BC03(X)
-#                 x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep(X)
-#                 chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
-#                 chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
-#                 chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
-#                 chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
-#                 chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
-#                 chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
-#                 chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
-#                 n = len(x)
-                
-#                 fig1 = plt.figure(figsize=(20,10))
-#                 frame1 = fig1.add_axes((.1,.35,.8,.6))
-#                 plt.step(x, y, color='r',lw=3)
-#                 plt.fill_between(x,(y+y_err),(y-y_err),alpha=0.1)
-#                 plt.errorbar(wave_list, photometric_flux, xerr=band_list, yerr=photometric_flux_err_mod, color='r', fmt='o', label='photometric data', markersize='14')
-#                 BC03_flux_attenuated = minimize_age_AV_vector_weighted_BC03_mod_no_weight_return_flux(X)[1]
-#                 model_wave = BC03_wave_list_num
-#                 model_flux = BC03_flux_attenuated 
-#                 sampling_model = interpolate.interp1d(model_wave,model_flux)
-#                 sampling_wave = np.arange(np.min(model_wave),np.max(model_wave),x[int(len(x)/2.)]-x[int(len(x)/2.)-1])
-#                 sampling_flux = sampling_model(sampling_wave)
-#                 plt.step(sampling_wave, sampling_flux, color='orange',label='TP-AGB light',lw=0.5)                           
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.ylim([0.05, 1.2])
-#                 plt.semilogx()
-#                 plt.ylabel(r'$\rm F_{\lambda}/F_{0.55\mu m}$',fontsize=24)
-#                 plt.tick_params(axis='both', which='major', labelsize=22)
-#                 plt.legend(loc='upper right',fontsize=24)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-                
-#                 frame2 = fig1.add_axes((.1,.2,.8,.15)) 
-#                 model_flux_grism = sampling_model(x)
-#                 plt.step(x, (y-model_flux_grism)/y_err, color='r', linewidth=0.5) 
-#                 syn_photometry_list = synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
-#                 # plt.errorbar(wave_list, (photometric_flux - syn_photometry_list)/photometric_flux_err_mod, xerr=band_list,  fmt='o', color='r', markersize=12)
-
-#                 plt.xlim([2.5e3,1.9e4])
-#                 plt.semilogx()
-#                 plt.axhline(3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(-3.0, linestyle='--', linewidth=1, color='k')
-#                 plt.axhline(1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.axhline(-1.0, linestyle='--', linewidth=0.5, color='k')
-#                 plt.ylim([-5,5])
-#                 plt.ylabel(r'$\rm (F_{\lambda,\rm data}-F_{\lambda,\rm model})/F_{\lambda,\rm err}$',fontsize=16)
-#                 plt.xlabel(r'Wavelength($\rm \AA$)', fontsize=20)
-#                 plt.axvspan(1.06e4,1.08e4, color='gray',alpha=0.1)
-#                 plt.axvspan(1.12e4,1.14e4, color='gray',alpha=0.1)
-#                 plt.tick_params(axis='both', which='major', labelsize=20)
-#                 plt.tick_params(axis='both', which='minor', labelsize=20)
-#                 figname=current_dir+outcome_dir+plot_dir+'GOODSS_BC03_SSP_MCMC50_'+str(nsteps*2)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+'.pdf'
-#                 plt.savefig(figname)
-#                 plt.clf()
-#     except:
-#         pass
-
-#     chi2_array=chi_square_list.loc[i,['x2_M05_opt','x2_M13_opt','x2_BC_opt','x2_M05_MCMC50','x2_M13_MCMC50','x2_BC_MCMC50']].values
-#     AV_array=chi_square_list.loc[i,['M05_AV_opt','M13_AV_opt','BC_AV_opt','M05_AV_MCMC50','M13_AV_MCMC50','BC_AV_MCMC50']].values
-#     index = find_nearest(chi2_array,0)
-#     AV_opt = float(AV_array[index])
-#     spectra_extinction = calzetti00(x, AV_opt, 4.05)
-#     spectra_flux_correction = 10 ** (-0.4 * spectra_extinction)
-#     y_corr = y / spectra_flux_correction
-#     if redshift<0.49:
-#         try:
-#             chi_square_list.loc[row,'grism_index_AV_corr'] = Lick_index_ratio(x,y_corr)
-#         except:
-#             pass
+    print('____________________BC03_________________________ Optimization GRIZLI__________________________')
+    bnds = ((0.0, 13.0), (0.0, 4.0))
+    X = np.array([galaxy_age,intrinsic_Av])
+    sol_BC03 = optimize.minimize(minimize_age_AV_vector_weighted_BC03_grizli, X, bounds = bnds, method='SLSQP')#, options = {'disp': True})
+    print('Optimized BC03 weighted reduced chisqure result:', sol_BC03)
+    [age_prior_optimized_BC03, AV_prior_optimized_BC03] = sol_BC03.x
+    X = sol_BC03.x
+    x2_optimized = minimize_age_AV_vector_weighted_BC03_grizli(X)
+    x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep_grizli(X)
+    chi_square_list.loc[row,'BC_age_opt'] = X[0]#"{0:.2f}".format(X[0])
+    chi_square_list.loc[row,'BC_AV_opt'] = X[1]#"{0:.2f}".format(X[1])
+    chi_square_list.loc[row,'x2_BC_opt'] = x2_optimized
+    chi_square_list.loc[row,'x2_spectra_BC_opt'] = x2_spec
+    chi_square_list.loc[row,'x2_photo_BC_opt'] = x2_phot
+    plot_grizli_fit_BC(sol_BC03.x,beam_g141)
+    with Pool() as pool:
+        ndim, nwalkers = 2, 10
+        tik = time.clock()
+        X = sol_BC03.x
+        p0 = [sol_BC03.x + 4.*np.random.rand(ndim) for i in range(nwalkers)]
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lg_minimize_age_AV_vector_weighted_BC03_grizli, pool=pool)
+        sampler.run_mcmc(p0, nsteps, progress=True)
+        samples = sampler.chain[:, 500:, :].reshape((-1,ndim))
+        samples = samples[(samples[:,0] > age_prior_optimized_BC03*0.1) & (samples[:,0] < age_prior_optimized_BC03*2.0) & (samples[:,1] < AV_prior_optimized_BC03*3.0)]
+        tok = time.clock()
+        multi_time = tok-tik
+        print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        print('Time to run BC03 MCMC:'+str(tok-tik))
+    try:
+        if samples.size > 1e3:
+            value2 = np.percentile(samples,50,axis=0)
+            X = np.percentile(samples, 50, axis=0)
+            [std_age_prior_optimized_BC03, std_AV_prior_optimized_BC03] = np.std(samples, axis=0)
+            plt.figure(figsize=(32,32),dpi=100)
+            fig = corner.corner(samples,
+                                labels=["age(Gyr)", r"$\rm A_V$"],\
+                                truths=[age_prior_optimized_BC03, AV_prior_optimized_BC03],\
+                                levels = (1-np.exp(-0.5),),\
+                                show_titles=True,title_kwargs={'fontsize':12},
+                                quantiles=(0.16,0.5, 0.84))
+            axes = np.array(fig.axes).reshape((ndim, ndim))
+            for i in range(ndim):
+                ax = axes[i, i]
+                ax.axvline(X[i], color="g")
+                ax.axvline(value2[i],color='r')
+            # Loop over the histograms
+            for yi in range(ndim):
+                for xi in range(yi):
+                    ax = axes[yi, xi]
+                    ax.axvline(X[xi], color="g")
+                    ax.axvline(value2[xi], color="r")
+                    ax.axhline(X[yi], color="g")
+                    ax.axhline(value2[yi], color="r")
+                    ax.plot(X[xi], X[yi], "sg")
+                    ax.plot(value2[xi],value2[yi],'sr')
+            plt.rcParams.update({'font.size': 12})
+            figname=current_dir+outcome_dir+plot_dir+"GOODSS_triangle_BC03_"+str(nsteps)+'_'+str(region)+'_'+str(ID)+'_'+"{0:.2f}".format(X[0])+'Gyr_AV'+"{0:.2f}".format(X[1])+"_grizli.pdf"
+            plt.savefig(figname)
+            plt.clf()
+            print('Maximum Likelihood Point BC03:', np.percentile(samples, 50, axis=0), np.std(samples, axis=0))
+            X = np.percentile(samples, 50, axis=0)
+            x2_optimized = minimize_age_AV_vector_weighted_BC03_grizli(X)
+            x2_spec, x2_phot = minimize_age_AV_vector_weighted_BC03_return_chi2_sep_grizli(X)
+            chi_square_list.loc[row,'BC_age_MCMC50'] = X[0]#"{0:.2f}".format(X[0])
+            chi_square_list.loc[row,'BC_AV_MCMC50'] = X[1]#"{0:.2f}".format(X[1])
+            chi_square_list.loc[row,'x2_BC_MCMC50'] = x2_optimized
+            chi_square_list.loc[row,'x2_spectra_BC_MCMC50'] = x2_spec
+            chi_square_list.loc[row,'x2_photo_BC_MCMC50'] = x2_phot
+            chi_square_list.loc[row,'BC_age_std'] = np.std(samples, axis=0)[0]#"{0:.2f}".format(np.std(samples, axis=0)[0])
+            chi_square_list.loc[row,'BC_AV_std'] = np.std(samples, axis=0)[1]#"{0:.2f}".format(np.std(samples, axis=0)[1])
+    except:
+        pass
+## Save to catalog
     chi_square_list.to_csv('/home/siqi/TAPS/TAPS/outcome/numeric/chi_square_list_goodss_'+str(date)+'_photo_'+str(region)+'_'+str(ID)+'_grizli.csv')
-#     print('-------------------------------------End--------------------------------------------------------------------------------------')
+    print('-------------------------------------End--------------------------------------------------------------------------------------')
+
+# chi_square_list.to_csv('/home/siqi/TAPS/TAPS/outcome/numeric/chi_square_list_goodss_'+str(date)+'_photo_'+str(region)+'_'+str(ID)+'_grizli_all.csv')
+# print('-------------------------------------End--------------------------------------------------------------------------------------')
+
 
