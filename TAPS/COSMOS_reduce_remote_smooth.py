@@ -1716,7 +1716,7 @@ def synthetic_photo(model_wave, model_flux, redshift_1, wave_list, band_list, ph
 nsteps=3000
 current_dir = '/home/siqi/TAPS/TAPS/'
 outcome_dir = 'outcome/'
-date='20200629'
+date='20200628'
 plot_dir = 'plot/'+date+'_cosmos/'
 
 tik = time.time()
@@ -1738,7 +1738,7 @@ for i in range(1,41):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in [0]:#range(21,40):
+for i in [13]:#range(21,40):
 #range(30,len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61 and x !=70 and x!=75]:
     # 35: 11-27160
     # 9: 1-22611

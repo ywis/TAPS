@@ -41,8 +41,7 @@ df_cat.columns=["id", "z_best", "z_type", "z_spec", "DM", "L153", "nfilt153","L1
 # df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodsn_20200206_PSB.csv', sep=',')
 df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodsn_20200301_PSB.csv', sep=',')
 df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodsn_20200303_PSB.csv', sep=',')
-# df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodsn_20200317_PSB.csv', sep=',')
-
+df = pd.read_csv('/Volumes/My Passport/TPAGB/database/matching_galaxies_goodsn_20200317_PSB.csv', sep=',')
 df.columns=['detector','ID','region','filename','chip']
 
 df_photometry=pd.read_csv('/Volumes/My Passport/goodsn_3dhst.v4.1.cats/Catalog/goodsn_3dhst.v4.1.cat', delim_whitespace=True,header=None,comment='#',index_col=False)
