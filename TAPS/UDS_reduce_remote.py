@@ -438,6 +438,7 @@ def minimize_age_AV_vector_weighted(X):
 
     x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
                                 5, 20/2.35, 5, 50/2.35) 
+    
     x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
     model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\

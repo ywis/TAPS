@@ -1,16 +1,16 @@
 import pandas as pd
 import numpy as np
-import matplotlib.backends.backend_tkagg
+# import matplotlib.backends.backend_tkagg
 import matplotlib.pylab as plt
 from astropy.io import fits
 from astropy import units as units
-import astropy.io.fits as pyfits
+# import astropy.io.fits as pyfits
 from astropy.convolution import Gaussian1DKernel, convolve
-from extinction import calzetti00, apply, ccm89
+from extinction import calzetti00#, apply, ccm89
 from scipy import optimize,interpolate
 import sys
 import time  
-from random import randrange, uniform
+# from random import randrange, uniform
 import emcee
 import corner
 import math
@@ -449,6 +449,9 @@ def minimize_age_AV_vector_weighted(X):
 
     x2 = reduced_chi_square_obs(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
                                 5, 20/2.35, 5, 50/2.35) 
+    x2_unsmoothed=reduced_chi_square(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new)
+    print('x2_spec smoothed and unsmoothed:',x2,x2_unsmoothed)
+
     x2_photo = chisquare_photo(model1[0,:], smooth_Flux_Ma_1Gyr_new, redshift_1, wave_list, band_list, photometric_flux, photometric_flux_err, photometric_flux_err_mod)
 
     model_wave_smooth, model_flux_smooth = smooth_model_spec(x, y, y_err, model1[0,:], smooth_Flux_Ma_1Gyr_new,\
@@ -1738,7 +1741,7 @@ for i in range(1,41):
 tok = time.time()
 print('Time reading the filter curves and without generate filter functions:',tok-tik)
 
-for i in [13]:#range(21,40):
+for i in [49]:#range(21,40):
 #range(30,len(df)):# for i in [x for x in range(len(df)-1,37,-1) if x != 61 and x !=70 and x!=75]:
     # 35: 11-27160
     # 9: 1-22611
